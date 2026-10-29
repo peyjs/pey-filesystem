@@ -1,0 +1,35 @@
+{
+  "name": "pey.filesystem",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "User-device file access: pick files/folders, list Markdown entries, read and write through File System Access handles (with capability flags for fallback paths); browser-side shadow drafts for unsaved device edits",
+  "exports": {
+    ".": "./index.js",
+    "./manifest.json": "./manifest.json",
+    "./lib/filesystem-service.js": "./lib/filesystem-service.js",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "files": [
+    "manifest.json",
+    "index.js",
+    "lib/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "docs"
+  ],
+  "keywords": [
+    "pey",
+    "filesystem",
+    "file-system-access",
+    "bonyan",
+    "persian"
+  ],
+  "license": "MIT"
+}
