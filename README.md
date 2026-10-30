@@ -1,5 +1,10 @@
 # pey.filesystem
 
+[![AI](https://img.shields.io/badge/Built%20with-AI-blueviolet)](#)
+[![version](https://img.shields.io/badge/version-1.0.0-blue.svg)](#)
+[![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Bonyan Architecture](https://img.shields.io/badge/bonyan-0.11-56c3bf)](https://github.com/barnevis/bonyan)
+
 افزونه پلتفرمی Pey: دسترسی به فایل و پوشهٔ دستگاه کاربر از مسیر آداپتور محیط — انتخاب فایل/پوشه، فهرست بازگشتی ورودی‌های Markdown، خواندن و نوشتن (با پرچم قابلیت برای مسیرهای جایگزین)، و پیش‌نویس‌های سایهٔ مرورگری برای ویرایش‌های ذخیره‌نشده.
 
 ## ساختار

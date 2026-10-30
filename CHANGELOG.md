@@ -1,14 +1,7 @@
 # تاریخچه نسخه‌های pey.filesystem
 
-## [0.3.0] - 1405-08-08
+## [1.0.0] - 1405-08-08
 
-- نوع افزونه `infrastructure` → `platform`: طبق بنیان، دسترسی به فایل‌سیستم توانایی محیط است و آداپتورش داخلی می‌ماند (بدون `adapterType`).
-- آداپتور محیطی تازه: `BrowserEnvironmentAdapter` پشت لودر registry (`config.adapter` + `adapterConfig`)؛ پایه‌های خام پلتفرم (pickerها، چرخهٔ مجوز، پیمایش) به آداپتور منتقل شد و سرویس فقط تصمیم‌ها را نگه می‌دارد.
-- تغییر قرارداد: `pickDirectory`/`pickFile` دیگر picker تزریقی نمی‌گیرند؛ `listDirectory` ورودی پوشهٔ انتخاب‌شده یا هندل خام می‌گیرد. آداپتور ناشناخته/ناقص خطای startup می‌دهد (`FILESYSTEM_ADAPTER_*`).
-- `docs/requirements.md` — نیازمندی‌ها؛ منبع حقیقت ساخت افزونه (قالب شماره‌ای).
-- تست‌ها به سه لایه رسیدند: آداپتور (scope فیک)، سرویس (روی آداپتور واقعی)، ورودی.
+انتشار نخست در پی: افزونهٔ پلتفرمی دسترسی به فایل و پوشهٔ دستگاه کاربر از مسیر آداپتور محیط قابل‌تعویض (`BrowserEnvironmentAdapter` امروز — pickerهای File System Access، چرخهٔ مجوز، پیمایش بازگشتی؛ انتخاب با `config.adapter`)، فهرست‌سازی/خواندن/نوشتن متمرکز بر Markdown (`.md`/`.markdown`/`.mdown`/`.txt`، خواندن بدون BOM)، پیش‌نویس‌های سایهٔ مرورگری روی `pey.storage.service` (انبار `disk-drafts`)، و `docs/requirements.md` به‌عنوان منبع حقیقت ساخت. کنسل کاربر و نبود picker نتیجه (`null`) است نه خطا؛ رد مجوز خطای ساخت‌یافتهٔ `FILESYSTEM_PERMISSION_DENIED` است.
 
-## [0.2.0] - 1405-07-17
-
-- پیش‌نویس‌های سایه: `saveShadow`/`readShadow`/`clearShadow` روی `pey.storage.service` (انبار `disk-drafts`)؛ وابستگی لازم تازه.
-- نسخهٔ نخست: `getCapabilities`، `pickDirectory`/`pickFile` با picker تزریقی، `listDirectory` بازگشتی، `collectEntries` برای لیست تخت، `readEntry`/`writeEntry` با چرخهٔ permission و خطاهای ساخت‌یافته.
+> انکوباسیون در پارسی‌نگار با نسخه‌های 0.1.0–0.2.0 (طرح picker تزریقی) انجام شد؛ آن تاریخچه نزد پروژهٔ مبدأ می‌ماند — خط‌نسخهٔ انتشار پی از همین‌جا آغاز می‌شود.

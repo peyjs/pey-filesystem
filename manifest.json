@@ -1,6 +1,6 @@
 {
   "name": "pey.filesystem",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "architecture": "0.11",
   "description": "User-device file access as a platform capability over a swappable environment adapter (browser File System Access today): pick files/folders, list Markdown entries, read and write; browser-side shadow drafts for unsaved device edits",
   "type": "platform",
