@@ -1,13 +1,17 @@
 # pey.filesystem
 
-افزونه زیرساختی Pey: دسترسی به فایل و پوشهٔ دستگاه کاربر — انتخاب فایل/پوشه، فهرست بازگشتی ورودی‌های Markdown، خواندن و نوشتن از مسیر handleهای File System Access (با پرچم قابلیت برای مسیرهای جایگزین).
+افزونه پلتفرمی Pey: دسترسی به فایل و پوشهٔ دستگاه کاربر از مسیر آداپتور محیط — انتخاب فایل/پوشه، فهرست بازگشتی ورودی‌های Markdown، خواندن و نوشتن (با پرچم قابلیت برای مسیرهای جایگزین)، و پیش‌نویس‌های سایهٔ مرورگری برای ویرایش‌های ذخیره‌نشده.
 
 ## ساختار
 
+- `docs/requirements.md` — نیازمندی‌ها؛ منبع حقیقت ساخت افزونه.
 - `manifest.json` — قرارداد معتبر افزونه.
-- `index.js` — نقطه‌های ورود `prepare` و `activate` بنیان (فقط سیم‌کشی؛ بدون وابستگی).
-- `lib/filesystem-service.js` — پیاده‌سازی سرویس (بدون DOM؛ pickerها تزریق می‌شوند؛ پیش‌نویس‌های سایه روی `pey.storage.service`).
-- `tests/filesystem.test.js` + `tests/filesystem-service.test.js` — تست‌های افزونه با picker/handle/فایل/استورج فیک.
+- `index.js` — نقطه‌های ورود `prepare` و `activate` بنیان (لود آداپتور + سیم‌کشی).
+- `lib/filesystem-service.js` — پیاده‌سازی سرویس (فیلتر Markdown، BOM، خطاها، سایه‌ها).
+- `lib/environment-loader.js` — لودر و اعتبارسنج آداپتور محیط.
+- `lib/error.js` — خطای ساخت‌یافتهٔ مرز افزونه.
+- `adapters/browser-environment-adapter.js` — آداپتور محیط مرورگر (File System Access + مسیر جایگزین).
+- `tests/filesystem.test.js` + `tests/filesystem-service.test.js` + `tests/adapters/browser-environment-adapter.test.js` — تست‌های افزونه.
 - `docs/reference.md` — مرجع کامل خودکفا.
 - `CHANGELOG.md` — تاریخچه نسخه‌های این افزونه.
 
@@ -18,4 +22,5 @@
 
 ## همچنین ببینید
 
+- `docs/requirements.md` برای «چه چیزی و چرا»، شامل قرارداد آداپتور محیط.
 - `docs/reference.md` برای قرارداد کامل متد و خطاها.

@@ -6,16 +6,20 @@
   "exports": {
     ".": "./index.js",
     "./manifest.json": "./manifest.json",
+    "./lib/error.js": "./lib/error.js",
     "./lib/filesystem-service.js": "./lib/filesystem-service.js",
+    "./lib/environment-loader.js": "./lib/environment-loader.js",
+    "./adapters/browser-environment-adapter.js": "./adapters/browser-environment-adapter.js",
     "./package.json": "./package.json"
   },
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test \"tests/**/*.test.js\""
   },
   "files": [
+    "adapters/",
     "manifest.json",
     "index.js",
     "lib/",

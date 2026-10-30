@@ -1,5 +1,8 @@
-// Pey filesystem plugin: entry point wiring prepare/activate.
-import { SERVICE_NAME, STORAGE_SERVICE, createService } from './lib/filesystem-service.js';
+// Pey filesystem plugin: wires the environment adapter and the service into
+// Bonyan's two-phase lifecycle.
+import { SERVICE_NAME } from './lib/error.js';
+import { STORAGE_SERVICE, createService } from './lib/filesystem-service.js';
+import { loadEnvironmentAdapter } from './lib/environment-loader.js';
 
 const state = { storage: null, events: null };
 let savedContext = null;
@@ -24,9 +27,10 @@ function handleServiceUnavailable(event) {
 }
 
 /**
- * Prepares the plugin: builds the service and registers lifecycle hooks.
+ * Prepares the configured environment adapter and the declared service.
  * @param {object} prepareContext Bonyan preparation context.
  * @returns {Promise<Array>} Service registration.
+ * @throws {object} Structured startup error when the adapter fails.
  */
 export async function prepare(prepareContext) {
   state.storage = null;
@@ -39,7 +43,12 @@ export async function prepare(prepareContext) {
   prepareContext.onShutdown = async () => {
     state.storage = null;
   };
-  return [{ name: SERVICE_NAME, object: createService(state) }];
+
+  const adapter = await loadEnvironmentAdapter(
+    prepareContext.config.adapter ?? 'BrowserEnvironmentAdapter',
+    prepareContext.config.adapterConfig ?? {},
+  );
+  return [{ name: SERVICE_NAME, object: createService({ adapter, state }) }];
 }
 
 /**
