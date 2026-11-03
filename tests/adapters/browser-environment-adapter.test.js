@@ -208,3 +208,151 @@ test('should_fail_denied_when_write_is_refused', async () => {
 
   await rejectsWithCode(adapter.writeEntry({ name: 'a.md', path: 'a.md', handle }, 'new'), 'FILESYSTEM_PERMISSION_DENIED');
 });
+
+// --- write/close failure matrix, abort, cancellation detection, walk bounds
+
+function writableSpies({ writeFails = false, closeFails = false } = {}) {
+  const calls = { write: 0, close: 0, abort: 0 };
+  const writeError = new Error('disk full');
+  const closeError = new Error('close failed');
+  const writable = {
+    write: async () => {
+      calls.write += 1;
+      if (writeFails) {
+        throw writeError;
+      }
+    },
+    close: async () => {
+      calls.close += 1;
+      if (closeFails) {
+        throw closeError;
+      }
+    },
+    abort: async () => {
+      calls.abort += 1;
+    },
+  };
+  return { writable, calls, writeError, closeError };
+}
+
+test('should_succeed_when_write_and_close_both_succeed', async () => {
+  const adapter = createBrowserEnvironmentAdapter({ scope: {} });
+  const handle = fakeFileHandle('a.md', 'old');
+  const spy = writableSpies();
+  handle.createWritable = async () => spy.writable;
+
+  const result = await adapter.writeEntry({ name: 'a.md', path: 'a.md', handle }, 'new');
+  assert.deepEqual(result, { name: 'a.md', path: 'a.md' });
+  assert.deepEqual(spy.calls, { write: 1, close: 1, abort: 0 });
+});
+
+test('should_fail_and_abort_when_write_fails_and_close_succeeds', async () => {
+  const adapter = createBrowserEnvironmentAdapter({ scope: {} });
+  const handle = fakeFileHandle('a.md', 'old');
+  const spy = writableSpies({ writeFails: true });
+  handle.createWritable = async () => spy.writable;
+
+  // The adapter surfaces the raw failure; the service maps it.
+  await assert.rejects(adapter.writeEntry({ name: 'a.md', path: 'a.md', handle }, 'new'), (error) => error === spy.writeError);
+  assert.equal(spy.calls.abort, 1);
+});
+
+test('should_fail_when_close_fails_after_a_successful_write', async () => {
+  const adapter = createBrowserEnvironmentAdapter({ scope: {} });
+  const handle = fakeFileHandle('a.md', 'old');
+  const spy = writableSpies({ closeFails: true });
+  handle.createWritable = async () => spy.writable;
+
+  // A failed close must not surface as a fake success.
+  await assert.rejects(adapter.writeEntry({ name: 'a.md', path: 'a.md', handle }, 'new'), (error) => error === spy.closeError);
+  assert.equal(spy.calls.abort, 1);
+});
+
+test('should_fail_with_the_original_write_error_when_both_fail', async () => {
+  const adapter = createBrowserEnvironmentAdapter({ scope: {} });
+  const handle = fakeFileHandle('a.md', 'old');
+  const spy = writableSpies({ writeFails: true, closeFails: true });
+  handle.createWritable = async () => spy.writable;
+
+  // The original write error survives a simultaneous close failure.
+  const error = await adapter.writeEntry({ name: 'a.md', path: 'a.md', handle }, 'new').catch((caught) => caught);
+  assert.equal(error, spy.writeError);
+  assert.equal(spy.calls.abort, 1);
+});
+
+test('should_treat_name_based_aborts_as_user_cancellation', async () => {
+  // DOMException instances are not `instanceof Error` on some engines.
+  const domLike = { name: 'AbortError', message: 'user aborted' };
+  const cancelling = createBrowserEnvironmentAdapter({
+    scope: { showDirectoryPicker: async () => { throw domLike; } },
+  });
+  assert.equal(await cancelling.pickDirectory(), null);
+});
+
+test('should_bound_the_walk_and_skip_infrastructure_folders', async () => {
+  const adapter = createBrowserEnvironmentAdapter({ scope: {} });
+  const file = (name) => ({ kind: 'file', name });
+  const deep = (level) => {
+    if (level === 0) {
+      return fakeDirectoryHandle(`d${level}`, [file('bottom.md')]);
+    }
+    return fakeDirectoryHandle(`d${level}`, [deep(level - 1)]);
+  };
+  const root = fakeDirectoryHandle('root', [
+    file('a.md'),
+    fakeDirectoryHandle('.git', [file('config.md')]),
+    fakeDirectoryHandle('node_modules', [file('lib.md')]),
+    deep(20),
+  ]);
+
+  const entries = await adapter.listEntries(root);
+  const paths = entries.map(({ path }) => path);
+  assert.equal(paths.includes('a.md'), true);
+  assert.equal(paths.some((path) => path.startsWith('.git/')), false);
+  assert.equal(paths.some((path) => path.startsWith('node_modules/')), false);
+  // Depth-capped: the 20-level chain stops at 16.
+  assert.equal(paths.some((path) => path.split('/').length > 16), false);
+  // Stable order.
+  assert.deepEqual([...paths].sort(), paths);
+});
+
+test('should_skip_an_unreadable_subfolder_instead_of_aborting_the_walk', async () => {
+  const adapter = createBrowserEnvironmentAdapter({ scope: {} });
+  const broken = {
+    kind: 'directory',
+    name: 'locked',
+    async *values() {
+      throw new Error('not allowed');
+    },
+  };
+  const root = fakeDirectoryHandle('root', [fakeFileHandle('a.md', 'a'), broken]);
+
+  const entries = await adapter.listEntries(root);
+  assert.deepEqual(entries.map(({ path }) => path), ['a.md']);
+});
+
+test('should_fall_back_to_the_global_scope_when_scope_is_not_an_object', () => {
+  const adapter = createBrowserEnvironmentAdapter({ scope: null });
+  assert.equal(typeof adapter.capabilities().directoryPicker, 'boolean');
+});
+
+test('should_keep_the_permission_failure_cause_on_denial', async () => {
+  const adapter = createBrowserEnvironmentAdapter({ scope: {} });
+  const handle = {
+    kind: 'file',
+    name: 'a.md',
+    async queryPermission() {
+      throw new Error('SecurityError: blocked');
+    },
+    async requestPermission() {
+      throw new Error('SecurityError: still blocked');
+    },
+    async getFile() {
+      return { text: async () => 'x' };
+    },
+  };
+
+  const error = await adapter.readEntry({ name: 'a.md', path: 'a.md', handle }).catch((caught) => caught);
+  assert.equal(error.code, 'FILESYSTEM_PERMISSION_DENIED');
+  assert.equal(error.detail.cause, 'SecurityError: blocked');
+});

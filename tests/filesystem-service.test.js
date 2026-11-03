@@ -482,3 +482,39 @@ test('should_keep_the_original_error_as_cause_when_mapping', async () => {
   assert.equal(error.code, 'FILESYSTEM_WRITE_FAILED');
   assert.equal(error.detail.cause, 'disk quota exceeded');
 });
+
+// --- integration: the full pick → list → read → shadow → write → clear path
+
+test('should_run_the_full_entry_lifecycle_and_keep_the_draft_until_disk_save', async () => {
+  const storage = createStorage();
+  const scope = {
+    showDirectoryPicker: async () => fakeDirectoryHandle('docs', [fakeFileHandle('note.md', '\uFEFFمتن روی دیسک')]),
+  };
+  const service = createServiceWithScope(scope, { storage });
+
+  // Pick → list → read:
+  const picked = await service.pickDirectory();
+  const entries = await service.listDirectory(picked);
+  assert.deepEqual(entries.map(({ path }) => path), ['note.md']);
+  const text = await service.readEntry(entries[0]);
+  assert.equal(text, 'متن روی دیسک');
+
+  // The draft survives while the disk save has not happened:
+  await service.saveShadow(picked, 'note.md', text, 'متن ویرایش‌شده');
+  assert.equal((await service.readShadow(picked, 'note.md')).draft, 'متن ویرایش‌شده');
+
+  // A failed disk write keeps the draft intact:
+  const failing = fakeFileHandle('note.md', text);
+  failing.createWritable = async () => { throw new Error('disk gone'); };
+  await rejectsWithCode(
+    service.writeEntry({ name: 'note.md', path: 'note.md', handle: failing }, 'متن جدید'),
+    'FILESYSTEM_WRITE_FAILED',
+  );
+  assert.equal((await service.readShadow(picked, 'note.md')).draft, 'متن ویرایش‌شده');
+
+  // A successful disk write makes the draft redundant:
+  const okHandle = fakeFileHandle('note.md', text);
+  await service.writeEntry({ name: 'note.md', path: 'note.md', handle: okHandle }, 'متن جدید');
+  await service.clearShadow(picked, 'note.md');
+  assert.equal(await service.readShadow(picked, 'note.md'), null);
+});
