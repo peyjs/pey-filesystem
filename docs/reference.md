@@ -24,7 +24,7 @@
 }
 ```
 
-بدون این فروشگاه، `saveShadow` با `FILESYSTEM_STORAGE_UNAVAILABLE` شکست می‌خورد (جزئیات خطا نشانی `STORE_NOT_FOUND` از pey.storage را نگه می‌دارد). اگر فروشگاه با `keyPath` دیگری ساخته شود، نوشتن ظاهراً موفق است اما رکورد هرگز با کلید «key» خوانده نمی‌شود — پس `keyPath` باید دقیقاً `key` باشد.
+بدون این فروشگاه، `saveShadow` با `FILESYSTEM_STORAGE_UNAVAILABLE` شکست می‌خورد (علت اصلی — پیام `STORE_NOT_FOUND` از pey.storage — در `detail.cause` می‌ماند). اگر فروشگاه با `keyPath` دیگری ساخته شود، نوشتن ظاهراً موفق است اما رکورد هرگز با کلید «key» خوانده نمی‌شود — پس `keyPath` باید دقیقاً `key` باشد.
 
 ## آداپتور محیط
 
