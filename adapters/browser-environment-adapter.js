@@ -167,25 +167,5 @@ export function createBrowserEnvironmentAdapter(config = {}) {
       }
       return { name: entry.name, path: entry.path };
     },
-
-    /**
-     * Collects a flat file list (e.g. from a webkitdirectory input) into
-     * entries, keeping each file for reading. Unfiltered — which files
-     * matter is the service's decision.
-     * @param {Array} files Flat file list.
-     * @returns {Promise<Array>} `{ name, path, file }` entries.
-     */
-    async collectEntries(files) {
-      const list = Array.isArray(files) ? files : [];
-      return list
-        .filter((file) => file && typeof file.name === 'string')
-        .map((file) => ({
-          name: file.name,
-          path: typeof file.webkitRelativePath === 'string' && file.webkitRelativePath.length > 0
-            ? file.webkitRelativePath
-            : file.name,
-          file,
-        }));
-    },
   };
 }

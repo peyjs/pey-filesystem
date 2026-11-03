@@ -208,30 +208,3 @@ test('should_fail_denied_when_write_is_refused', async () => {
 
   await rejectsWithCode(adapter.writeEntry({ name: 'a.md', path: 'a.md', handle }, 'new'), 'FILESYSTEM_PERMISSION_DENIED');
 });
-
-test('should_collect_flat_files_with_relative_paths', async () => {
-  const adapter = createBrowserEnvironmentAdapter({ scope: {} });
-  const file = (name, relativePath = '') => ({
-    name,
-    webkitRelativePath: relativePath,
-    text: async () => '',
-  });
-
-  const entries = await adapter.collectEntries([
-    file('a.md', 'docs/a.md'),
-    file('pic.png', 'docs/pic.png'),
-    file('b.txt'),
-  ]);
-
-  assert.deepEqual(entries.map(({ path }) => path), ['docs/a.md', 'docs/pic.png', 'b.txt']);
-  assert.equal(typeof entries[0].file.text, 'function');
-});
-
-test('should_ignore_non_file_entries_when_collecting', async () => {
-  const adapter = createBrowserEnvironmentAdapter({ scope: {} });
-  const file = { name: 'a.md', text: async () => '' };
-
-  assert.deepEqual(await adapter.collectEntries([null, 'nope', file]), [
-    { name: 'a.md', path: 'a.md', file },
-  ]);
-});

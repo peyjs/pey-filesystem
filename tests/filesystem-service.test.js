@@ -89,7 +89,11 @@ test('should_return_entry_when_directory_picked', async () => {
   const handle = fakeDirectoryHandle('docs');
   const service = createServiceWithScope({ showDirectoryPicker: async () => handle });
 
-  assert.deepEqual(await service.pickDirectory(), { name: 'docs', path: 'docs', handle });
+  const picked = await service.pickDirectory();
+  assert.equal(picked.name, 'docs');
+  assert.equal(picked.path, 'docs');
+  assert.equal(picked.handle, handle);
+  assert.equal(typeof picked.rootId, 'string');
 });
 
 test('should_return_null_when_pick_is_unavailable_or_cancelled', async () => {
@@ -119,7 +123,10 @@ test('should_unwrap_array_when_file_picked', async () => {
   const handle = fakeFileHandle('note.md', 'hi');
   const service = createServiceWithScope({ showOpenFilePicker: async () => [handle] });
 
-  assert.deepEqual(await service.pickFile(), { name: 'note.md', path: 'note.md', handle });
+  const picked = await service.pickFile();
+  assert.equal(picked.name, 'note.md');
+  assert.equal(picked.handle, handle);
+  assert.equal(typeof picked.rootId, 'string');
 });
 
 test('should_list_markdown_recursively_when_walking', async () => {
@@ -159,16 +166,24 @@ test('should_fail_structured_when_walk_fails', async () => {
   await rejectsWithCode(service.listDirectory(broken), 'FILESYSTEM_READ_FAILED');
 });
 
-test('should_filter_markdown_when_collecting', async () => {
+test('should_collect_markdown_with_root_relative_paths', async () => {
   const service = createServiceWithScope();
 
   const entries = await service.collectEntries([
     fakeFile('a.md', 'a', 'docs/a.md'),
+    fakeFile('nested.md', 'n', 'docs/sub/nested.md'),
     fakeFile('pic.png', 'x', 'docs/pic.png'),
     fakeFile('b.txt', 'b'),
   ]);
-  assert.deepEqual(entries.map(({ path }) => path), ['docs/a.md', 'b.txt']);
+  assert.deepEqual(entries.map(({ path }) => path), ['a.md', 'sub/nested.md', 'b.txt']);
   assert.equal(typeof entries[0].file.text, 'function');
+});
+
+test('should_fail_structured_when_collecting_without_a_file_list', async () => {
+  const service = createServiceWithScope();
+
+  await rejectsWithCode(service.collectEntries('not a list'), 'FILESYSTEM_READ_FAILED');
+  await rejectsWithCode(service.collectEntries(null), 'FILESYSTEM_READ_FAILED');
 });
 
 test('should_read_plain_file_when_entry_has_file', async () => {
@@ -322,4 +337,148 @@ test('should_fail_storage_unavailable_when_unbound', async () => {
   await rejectsWithCode(service.saveShadow('docs', 'a.md', 'b', 'd'), 'FILESYSTEM_STORAGE_UNAVAILABLE');
   await rejectsWithCode(service.readShadow('docs', 'a.md'), 'FILESYSTEM_STORAGE_UNAVAILABLE');
   await rejectsWithCode(service.clearShadow('docs', 'a.md'), 'FILESYSTEM_STORAGE_UNAVAILABLE');
+});
+
+test('should_keep_same_named_roots_shadows_independent_via_minted_root_ids', async () => {
+  const storage = createStorage();
+  const service = createServiceWithScope({
+    showDirectoryPicker: async () => fakeDirectoryHandle('docs'),
+  }, { storage });
+
+  // Two picks of two different folders that happen to share a name.
+  const first = await service.pickDirectory();
+  const second = await service.pickDirectory();
+  assert.notEqual(first.rootId, second.rootId);
+
+  await service.saveShadow(first, 'notes.md', 'base-one', 'draft-one');
+  await service.saveShadow(second, 'notes.md', 'base-two', 'draft-two');
+
+  const one = await service.readShadow(first, 'notes.md');
+  const two = await service.readShadow(second, 'notes.md');
+
+  assert.equal(one.draft, 'draft-one');
+  assert.equal(two.draft, 'draft-two');
+
+  // Clearing one root's draft leaves the other untouched.
+  await service.clearShadow(first, 'notes.md');
+  assert.equal(await service.readShadow(first, 'notes.md'), null);
+  assert.equal((await service.readShadow(second, 'notes.md')).draft, 'draft-two');
+});
+
+test('should_keep_label_string_shadows_working_and_distinct_for_newline_tricks', async () => {
+  const storage = createStorage();
+  const service = createServiceWithScope({}, { storage });
+
+  const saved = await service.saveShadow('docs', 'a.md', 'base', 'draft');
+  assert.deepEqual(saved, { root: 'docs', path: 'a.md', updatedAt: saved.updatedAt });
+  assert.equal((await service.readShadow('docs', 'a.md')).draft, 'draft');
+
+  await service.saveShadow('a\nb', 'c', 'base1', 'draft1');
+  await service.saveShadow('a', 'b\nc', 'base2', 'draft2');
+
+  assert.equal((await service.readShadow('a\nb', 'c')).draft, 'draft1');
+  assert.equal((await service.readShadow('a', 'b\nc')).draft, 'draft2');
+});
+
+test('should_reject_invalid_shadow_identity_and_text', async () => {
+  const storage = createStorage();
+  const service = createServiceWithScope({}, { storage });
+
+  await rejectsWithCode(service.saveShadow(undefined, 'a.md', 'b', 'd'), 'FILESYSTEM_INVALID_ENTRY');
+  await rejectsWithCode(service.saveShadow('docs', '', 'b', 'd'), 'FILESYSTEM_INVALID_ENTRY');
+  await rejectsWithCode(service.saveShadow('docs', 'a.md', 42, 'd'), 'FILESYSTEM_INVALID_ENTRY');
+  await rejectsWithCode(service.saveShadow('docs', 'a.md', 'b', null), 'FILESYSTEM_INVALID_ENTRY');
+  await rejectsWithCode(service.readShadow(undefined, 'a.md'), 'FILESYSTEM_INVALID_ENTRY');
+  await rejectsWithCode(service.clearShadow('docs', null), 'FILESYSTEM_INVALID_ENTRY');
+  assert.equal(storage.records.size, 0);
+});
+
+test('should_still_find_pre_110_drafts_and_migrate_them_on_save', async () => {
+  const storage = createStorage();
+  // A pre-1.1.0 draft under the legacy key shape.
+  storage.records.set('docs\na.md', { key: 'docs\na.md', root: 'docs', path: 'a.md', base: 'old-base', draft: 'old-draft', updatedAt: 1 });
+  const service = createServiceWithScope({}, { storage });
+
+  const legacy = await service.readShadow('docs', 'a.md');
+  assert.equal(legacy.draft, 'old-draft');
+
+  await service.saveShadow('docs', 'a.md', 'base', 'new-draft');
+  const migrated = await service.readShadow('docs', 'a.md');
+  assert.equal(migrated.draft, 'new-draft');
+  assert.equal(storage.records.has('docs\na.md'), false);
+});
+
+test('should_clear_both_key_shapes_and_tolerate_missing_drafts', async () => {
+  const storage = createStorage();
+  storage.records.set('docs\na.md', { key: 'docs\na.md', root: 'docs', path: 'a.md', base: '', draft: 'x', updatedAt: 1 });
+  const service = createServiceWithScope({}, { storage });
+
+  // A legacy-only draft is cleared through the modern call.
+  await service.clearShadow('docs', 'a.md');
+  assert.equal(storage.records.size, 0);
+
+  // Clearing again (nothing there) succeeds silently.
+  await service.clearShadow('docs', 'a.md');
+  assert.equal(await service.readShadow('docs', 'a.md'), null);
+});
+
+test('should_return_null_when_storage_answers_undefined', async () => {
+  const service = createServiceWithScope({}, {
+    storage: { async read() { return undefined; }, async write() {}, async delete() {} },
+  });
+
+  assert.equal(await service.readShadow('docs', 'a.md'), null);
+});
+
+// --- adapter-output validation and cause preservation ---------------------
+
+function stubAdapter(overrides = {}) {
+  return {
+    capabilities: async () => ({ directoryPicker: false, filePicker: false, writable: false }),
+    pickDirectory: async () => null,
+    pickFile: async () => null,
+    listEntries: async () => [],
+    readEntry: async () => 'text',
+    writeEntry: async () => ({ name: 'a.md', path: 'a.md' }),
+    ...overrides,
+  };
+}
+
+test('should_fail_structured_when_the_adapter_returns_no_entry_list', async () => {
+  const { createService: create } = await import('../lib/filesystem-service.js');
+  const service = create({ adapter: stubAdapter({ listEntries: async () => null }), state: {} }).service;
+
+  await rejectsWithCode(service.listDirectory({}), 'FILESYSTEM_READ_FAILED');
+});
+
+test('should_fail_structured_when_the_adapter_returns_no_text', async () => {
+  const { createService: create } = await import('../lib/filesystem-service.js');
+  const service = create({ adapter: stubAdapter({ readEntry: async () => 42 }), state: {} }).service;
+
+  await rejectsWithCode(service.readEntry({ name: 'a.md', path: 'a.md' }), 'FILESYSTEM_READ_FAILED');
+});
+
+test('should_default_capabilities_when_the_adapter_answers_nothing', async () => {
+  const { createService: create } = await import('../lib/filesystem-service.js');
+  const service = create({ adapter: stubAdapter({ capabilities: async () => undefined }), state: {} }).service;
+
+  assert.deepEqual(await service.getCapabilities(), { directoryPicker: false, filePicker: false, writable: false });
+});
+
+test('should_map_capability_failures_to_a_structured_error', async () => {
+  const { createService: create } = await import('../lib/filesystem-service.js');
+  const service = create({ adapter: stubAdapter({ capabilities: async () => { throw new Error('scope gone'); } }), state: {} }).service;
+
+  await rejectsWithCode(service.getCapabilities(), 'FILESYSTEM_ADAPTER_INVALID');
+});
+
+test('should_keep_the_original_error_as_cause_when_mapping', async () => {
+  const { createService: create } = await import('../lib/filesystem-service.js');
+  const service = create({ adapter: stubAdapter({
+    writeEntry: async () => { throw new Error('disk quota exceeded'); },
+  }), state: {} }).service;
+
+  const error = await service.writeEntry({ name: 'a.md', path: 'a.md' }, 'new').catch((caught) => caught);
+  assert.equal(error.code, 'FILESYSTEM_WRITE_FAILED');
+  assert.equal(error.detail.cause, 'disk quota exceeded');
 });
