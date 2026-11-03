@@ -73,4 +73,91 @@ test('should_report_critical_when_storage_is_lost', async () => {
   assert.equal(reported.length, 1);
   assert.equal(reported[0].code, 'REQUIRED_DEPENDENCY_LOST');
   assert.equal(reported[0].type, 'critical');
+  assert.equal(reported[0].source, 'pey.filesystem');
 });
+
+test('should_throw_structured_startup_error_when_activation_lacks_storage', async () => {
+  const { context } = createPrepareContext();
+  await prepare(context);
+
+  const error = await activate({}).catch((caught) => caught);
+  assert.equal(error.code, 'FILESYSTEM_STORAGE_UNAVAILABLE');
+  assert.equal(error.type, 'startup');
+  assert.equal(error.source, 'pey.filesystem');
+});
+
+test('should_refuse_every_method_after_deactivation_and_shutdown', async () => {
+  const { context } = createPrepareContext();
+  const provided = await prepare(context);
+  const service = provided[0].object;
+  await activate({ 'pey.storage.service': createStorage() });
+
+  context.onDeactivated();
+
+  for (const call of [
+    () => service.getCapabilities(),
+    () => service.pickDirectory(),
+    () => service.pickFile(),
+    () => service.listDirectory({}),
+    () => service.readEntry({}),
+    () => service.writeEntry({ name: 'a.md', path: 'a.md', file: fakeTextFile() }, 'x'),
+    () => service.saveShadow('docs', 'a.md', 'b', 'd'),
+    () => service.readShadow('docs', 'a.md'),
+    () => service.clearShadow('docs', 'a.md'),
+  ]) {
+    await assert.rejects(call, (error) => error?.code === 'SERVICE_UNAVAILABLE');
+  }
+});
+
+function fakeTextFile() {
+  return { name: 'a.md', text: async () => 'x' };
+}
+
+test('should_refuse_every_method_after_shutdown_too', async () => {
+  const { context } = createPrepareContext();
+  const provided = await prepare(context);
+  const service = provided[0].object;
+
+  await context.onShutdown();
+
+  await assert.rejects(() => service.getCapabilities(), (error) => error?.code === 'SERVICE_UNAVAILABLE');
+  await assert.rejects(() => service.readShadow('docs', 'a.md'), (error) => error?.code === 'SERVICE_UNAVAILABLE');
+});
+
+test('should_release_the_event_subscription_on_deactivation_without_double_release', async () => {
+  const unsubscribed = [];
+  const { context } = createPrepareContextWithUnsubscribe(unsubscribed);
+  await prepare(context);
+
+  context.onDeactivated();
+  await context.onShutdown();
+
+  // The first teardown releases the subscription; the second is a no-op.
+  assert.equal(unsubscribed.length, 1);
+});
+
+test('should_survive_repeated_teardown_and_reprepare_with_one_subscription', async () => {
+  const unsubscribed = [];
+  const { context } = createPrepareContextWithUnsubscribe(unsubscribed);
+  await prepare(context);
+  context.onDeactivated();
+  await context.onShutdown();
+  assert.equal(unsubscribed.length, 1);
+
+  const providedAgain = await prepare(context);
+  assert.equal(unsubscribed.length, 1);
+  assert.equal(typeof providedAgain[0].object.getCapabilities, 'function');
+});
+
+function createPrepareContextWithUnsubscribe(unsubscribed) {
+  const { context } = createPrepareContext();
+  const originalSubscribe = context.events.subscribe;
+  context.events.subscribe = (type, handler) => {
+    const off = originalSubscribe(type, handler);
+    return () => {
+      unsubscribed.push(type);
+      off?.();
+    };
+  };
+  return { context };
+}

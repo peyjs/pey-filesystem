@@ -6,7 +6,7 @@ import { createBrowserEnvironmentAdapter } from '../adapters/browser-environment
 import { createService, isMarkdownName } from '../lib/filesystem-service.js';
 
 function createServiceWithScope(scope = {}, state = {}) {
-  return createService({ adapter: createBrowserEnvironmentAdapter({ scope }), state });
+  return createService({ adapter: createBrowserEnvironmentAdapter({ scope }), state }).service;
 }
 
 function fakeFile(name, text, relativePath = '') {

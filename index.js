@@ -1,11 +1,13 @@
 // Pey filesystem plugin: wires the environment adapter and the service into
 // Bonyan's two-phase lifecycle.
-import { SERVICE_NAME } from './lib/error.js';
+import { createFilesystemError, PLUGIN_NAME, SERVICE_NAME } from './lib/error.js';
 import { STORAGE_SERVICE, createService } from './lib/filesystem-service.js';
 import { loadEnvironmentAdapter } from './lib/environment-loader.js';
 
-const state = { storage: null, events: null };
+const state = { storage: null };
 let savedContext = null;
+let lifecycle = null;
+let unsubscribe = null;
 
 /**
  * Reports a critical error when the required storage service disappears at
@@ -20,10 +22,24 @@ function handleServiceUnavailable(event) {
   savedContext.reportCriticalError({
     code: 'REQUIRED_DEPENDENCY_LOST',
     message: `Required service ${STORAGE_SERVICE} is no longer available`,
-    source: SERVICE_NAME,
+    source: PLUGIN_NAME,
     type: 'critical',
     timestamp: new Date().toISOString(),
   });
+}
+
+/**
+ * Tears the plugin down: the service refuses every later call, the event
+ * subscription is released and no critical report can fire afterwards.
+ * Idempotent — running it twice is harmless.
+ * @returns {void}
+ */
+function teardown() {
+  state.storage = null;
+  lifecycle?.deactivate();
+  unsubscribe?.();
+  unsubscribe = null;
+  savedContext = null;
 }
 
 /**
@@ -34,21 +50,19 @@ function handleServiceUnavailable(event) {
  */
 export async function prepare(prepareContext) {
   state.storage = null;
-  state.events = prepareContext.events ?? null;
   savedContext = prepareContext;
-  prepareContext.events?.subscribe('core:service-unavailable', handleServiceUnavailable);
-  prepareContext.onDeactivated = () => {
-    state.storage = null;
-  };
-  prepareContext.onShutdown = async () => {
-    state.storage = null;
-  };
+  lifecycle = null;
+  unsubscribe?.();
+  unsubscribe = prepareContext.events?.subscribe('core:service-unavailable', handleServiceUnavailable) ?? null;
+  prepareContext.onDeactivated = () => teardown();
+  prepareContext.onShutdown = async () => teardown();
 
   const adapter = await loadEnvironmentAdapter(
     prepareContext.config.adapter ?? 'BrowserEnvironmentAdapter',
     prepareContext.config.adapterConfig ?? {},
   );
-  return [{ name: SERVICE_NAME, object: createService({ adapter, state }) }];
+  lifecycle = createService({ adapter, state });
+  return [{ name: SERVICE_NAME, object: lifecycle.service }];
 }
 
 /**
@@ -59,7 +73,12 @@ export async function prepare(prepareContext) {
 export async function activate(services) {
   const storage = services[STORAGE_SERVICE];
   if (!storage) {
-    throw new Error(`Required service is unavailable: ${STORAGE_SERVICE}`);
+    throw createFilesystemError(
+      'FILESYSTEM_STORAGE_UNAVAILABLE',
+      `Required service is unavailable: ${STORAGE_SERVICE}`,
+      { service: STORAGE_SERVICE },
+      'startup',
+    );
   }
   state.storage = storage;
 }
