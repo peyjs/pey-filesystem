@@ -518,3 +518,82 @@ test('should_run_the_full_entry_lifecycle_and_keep_the_draft_until_disk_save', a
   await service.clearShadow(picked, 'note.md');
   assert.equal(await service.readShadow(picked, 'note.md'), null);
 });
+
+// --- real storage failures in the shadow methods ---------------------------
+
+test('should_fail_structured_when_storage_rejects_the_shadow_save', async () => {
+  const { createService: create } = await import('../lib/filesystem-service.js');
+  const failingStorage = {
+    read: async () => {
+      throw Object.assign(new Error('missing'), { code: 'RECORD_NOT_FOUND' });
+    },
+    write: async () => {
+      throw new Error('quota exceeded');
+    },
+    delete: async () => {},
+  };
+  const service = create({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
+
+  await rejectsWithCode(
+    service.saveShadow({ rootId: 'root-1', name: 'docs' }, 'a.md', 'base', 'draft'),
+    'FILESYSTEM_STORAGE_UNAVAILABLE',
+  );
+});
+
+test('should_fail_structured_when_storage_rejects_the_shadow_read', async () => {
+  const { createService: create } = await import('../lib/filesystem-service.js');
+  const failingStorage = {
+    read: async () => {
+      throw new Error('indexeddb gone');
+    },
+    write: async () => {},
+    delete: async () => {},
+  };
+  const service = create({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
+
+  await rejectsWithCode(
+    service.readShadow({ rootId: 'root-1', name: 'docs' }, 'a.md'),
+    'FILESYSTEM_STORAGE_UNAVAILABLE',
+  );
+});
+
+test('should_fail_structured_when_storage_rejects_the_shadow_clear', async () => {
+  const { createService: create } = await import('../lib/filesystem-service.js');
+  const failingStorage = {
+    read: async () => {
+      throw Object.assign(new Error('missing'), { code: 'RECORD_NOT_FOUND' });
+    },
+    write: async () => {},
+    delete: async () => {
+      throw new Error('indexeddb gone');
+    },
+  };
+  const service = create({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
+
+  await rejectsWithCode(
+    service.clearShadow({ rootId: 'root-1', name: 'docs' }, 'a.md'),
+    'FILESYSTEM_STORAGE_UNAVAILABLE',
+  );
+});
+
+test('should_keep_errors_mapped_when_the_shadow_save_causes_a_coded_failure', async () => {
+  // The adapter passthrough branch: a coded storage failure rides through
+  // unchanged instead of being double-wrapped.
+  const { createService: create } = await import('../lib/filesystem-service.js');
+  const coded = Object.assign(new Error('storage down'), { code: 'FILESYSTEM_STORAGE_UNAVAILABLE' });
+  const failingStorage = {
+    read: async () => {
+      throw Object.assign(new Error('missing'), { code: 'RECORD_NOT_FOUND' });
+    },
+    write: async () => {
+      throw coded;
+    },
+    delete: async () => {},
+  };
+  const service = create({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
+
+  await assert.rejects(
+    () => service.saveShadow({ rootId: 'root-1', name: 'docs' }, 'a.md', 'base', 'draft'),
+    (error) => error === coded,
+  );
+});

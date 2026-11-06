@@ -1,6 +1,6 @@
 {
   "name": "pey.filesystem",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "User-device file access: pick files/folders, list Markdown entries, read and write through File System Access handles (with capability flags for fallback paths); browser-side shadow drafts for unsaved device edits",
   "exports": {

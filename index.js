@@ -57,9 +57,10 @@ export async function prepare(prepareContext) {
   prepareContext.onDeactivated = () => teardown();
   prepareContext.onShutdown = async () => teardown();
 
+  const config = prepareContext.config ?? {};
   const adapter = await loadEnvironmentAdapter(
-    prepareContext.config.adapter ?? 'BrowserEnvironmentAdapter',
-    prepareContext.config.adapterConfig ?? {},
+    config.adapter ?? 'BrowserEnvironmentAdapter',
+    config.adapterConfig ?? {},
   );
   lifecycle = createService({ adapter, state });
   return [{ name: SERVICE_NAME, object: lifecycle.service }];

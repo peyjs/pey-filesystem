@@ -55,7 +55,7 @@
 - `getCapabilities()` → `{ directoryPicker, filePicker, writable }` — `writable` یعنی ورودی‌های انتخاب‌شده «می‌توانند» بازنویسی شوند؛ تلاش نوشتن ممکن است با `FILESYSTEM_PERMISSION_DENIED` رد شود.
 - `pickDirectory()` / `pickFile()` — از آداپتور محیط؛ `null` وقتی picker نیست یا کاربر لغو کرد (لغو بر پایهٔ نام `AbortError` تشخیص داده می‌شود، نه نوع کلاس) — نتیجه، نه خطا.
 - `listDirectory(directory)` — ورودی پوشهٔ انتخاب‌شده یا هندل خام؛ پیمایش بازگشتی در آداپتور، فیلتر Markdown در سرویس؛ لیست تخت با مسیر نسبی.
-- `collectEntries(files)` — شکل‌دهی لیست تخت در سرویس؛ ورودی غیرآرایه `FILESYSTEM_READ_FAILED` می‌دهد.
+- `collectEntries(files)` — شکل‌دهی لیست تخت در سرویس؛ ورودی غیرآرایه `FILESYSTEM_READ_FAILED` می‌دهد. ورودی‌های بدون `name` بی‌صدا کنار گذاشته می‌شوند (هم‌سو با فیلتر «فقط Markdown»).
 - `readEntry(entry)` — از handle (با round-trip اجازهٔ `read` در آداپتور) یا فایل ساده؛ BOM ابتدایی در سرویس حذف می‌شود؛ خروجی غیرمتنی آداپتور خطای ساختاریافته می‌دهد.
 - `writeEntry(entry, content)` — از handle (با round-trip اجازهٔ `readwrite` در آداپتور). شکست `write` یا `close` شکست عملیات است و جریان abort می‌شود تا هیچ نیمه‌نوشته‌ای commit نشود؛ خطای اصلی در `detail.cause` می‌ماند. وقتی ورودی handle نوشتنی ندارد ‏`null` برمی‌گرداند تا فراخوان fallback کند (مثلاً دانلود)؛ ‏`{ name, path }` در موفقیت.
 - `saveShadow(rootOrEntry, path, base, draft)` — ذخیرهٔ پیش‌نویس سایه (انبار `disk-drafts` روی `pey.storage.service`): مبنای دیسک + draft جاری؛ ‏`{ root, path, updatedAt }` برمی‌گرداند. آرگومان اول ترجیحاً همان entry انتخاب‌شده است (rootId ضرب‌شده دو پوشهٔ هم‌نام را جدا می‌کند)؛ رشتهٔ برچسب هم پذیرفته می‌شود. `base` و `draft` باید رشته باشند (`FILESYSTEM_INVALID_ENTRY`) و هرگز بی‌صدا به رشتهٔ خالی تبدیل نمی‌شوند.
@@ -78,6 +78,7 @@
 - `FILESYSTEM_STORAGE_UNAVAILABLE` — سرویس ذخیره در دسترس نیست یا فروشگاه `disk-drafts` پیکربندی نشده (سایه‌ها).
 - `SERVICE_UNAVAILABLE` — فراخوانی پس از غیرفعال‌شدن/خاموشی.
 - startup آداپتور: `FILESYSTEM_ADAPTER_NOT_FOUND` / `FILESYSTEM_ADAPTER_INVALID` / `FILESYSTEM_ADAPTER_INITIALIZATION_FAILED`.
+- نکتهٔ دوکاربردی: `FILESYSTEM_ADAPTER_INVALID` در `getCapabilities` با `type: 'operational'` هم به‌کار می‌رود (شکست زمان‌اجراِ گزارش قابلیت‌ها)؛ خانوادهٔ کد مشترک است، تفکیک با `type` انجام می‌شود.
 
 ## وابستگی‌ها
 

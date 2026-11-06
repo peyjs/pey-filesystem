@@ -1,5 +1,21 @@
 # تاریخچه نسخه‌های pey.filesystem
 
+## [1.1.1] - 1405-08-15
+
+رفع یافته‌های بازبینی؛ بدون تغییر قرارداد.
+
+### تغییر یافته
+
+- سوئیت قرارداد مشترک و قابل‌استفادهٔ مجدد آداپتور (`tests/environment-adapter-contract.js` + فیکسچرهای مشترک) نوشته شد و علیه آداپتور مرورگر اجرا می‌شود؛ آداپتور آینده (Capacitor/Tauri) فقط فکتوری می‌دهد. آزمون‌های اختصاصی آداپتور مرورگر به مورد خاص خود (fallback به scope سراسری) محدود شد.
+- بلوک هویت/کلید سایه به `lib/shadow-identity.js` منتقل شد (فایل سرویس از ~۴۵۰ خط به ~۳۸۰ خط).
+- دسترسی به `config` در `prepare` گارد گرفت (config غایب دیگر TypeError خام نمی‌دهد).
+- مستندات: حذف بی‌صدای ورودی‌های بی‌نام در `collectEntries` و کاربرد دوگانهٔ `FILESYSTEM_ADAPTER_INVALID` در `getCapabilities` (تفکیک با `type`) صریح شد.
+
+### آزمون
+
+- مسیرهای خطای واقعی pey.storage در `saveShadow`/`readShadow`/`clearShadow` پوشش داده شد (ردّ write/read/delete → `FILESYSTEM_STORAGE_UNAVAILABLE` با `detail.cause`، و عبور خطای کدشده بدون wrap دوم).
+- `tests/filesystem.test.js` به `tests/index.test.js` تغییر نام یافت و زنجیرهٔ `.then` باقی‌مانده با await جایگزین شد (۷۷ آزمون).
+
 ## [1.1.0] - 1405-08-13
 
 ### تغییر یافته
