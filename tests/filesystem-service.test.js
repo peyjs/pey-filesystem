@@ -62,7 +62,7 @@ function rejectsWithCode(promise, code) {
   return assert.rejects(promise, (error) => error?.code === code);
 }
 
-test('should_match_markdown_names_when_checking', () => {
+test('should_match_markdown_names_when_the_extension_varies_in_case', () => {
   assert.equal(isMarkdownName('note.md'), true);
   assert.equal(isMarkdownName('NOTE.MARKDOWN'), true);
   assert.equal(isMarkdownName('a.mdown'), true);
@@ -166,7 +166,7 @@ test('should_fail_structured_when_walk_fails', async () => {
   await rejectsWithCode(service.listDirectory(broken), 'FILESYSTEM_READ_FAILED');
 });
 
-test('should_collect_markdown_with_root_relative_paths', async () => {
+test('should_collect_markdown_with_root_relative_paths_when_a_directory_is_picked', async () => {
   const service = createServiceWithScope();
 
   const entries = await service.collectEntries([
@@ -339,7 +339,7 @@ test('should_fail_storage_unavailable_when_unbound', async () => {
   await rejectsWithCode(service.clearShadow('docs', 'a.md'), 'FILESYSTEM_STORAGE_UNAVAILABLE');
 });
 
-test('should_keep_same_named_roots_shadows_independent_via_minted_root_ids', async () => {
+test('should_keep_same_named_roots_shadows_independent_when_roots_are_picked_twice', async () => {
   const storage = createStorage();
   const service = createServiceWithScope({
     showDirectoryPicker: async () => fakeDirectoryHandle('docs'),
@@ -365,7 +365,7 @@ test('should_keep_same_named_roots_shadows_independent_via_minted_root_ids', asy
   assert.equal((await service.readShadow(second, 'notes.md')).draft, 'draft-two');
 });
 
-test('should_keep_label_string_shadows_working_and_distinct_for_newline_tricks', async () => {
+test('should_keep_label_string_shadows_working_and_distinct_when_labels_carry_newlines', async () => {
   const storage = createStorage();
   const service = createServiceWithScope({}, { storage });
 
@@ -380,7 +380,7 @@ test('should_keep_label_string_shadows_working_and_distinct_for_newline_tricks',
   assert.equal((await service.readShadow('a', 'b\nc')).draft, 'draft2');
 });
 
-test('should_reject_invalid_shadow_identity_and_text', async () => {
+test('should_reject_invalid_shadow_identity_and_text_when_arguments_are_malformed', async () => {
   const storage = createStorage();
   const service = createServiceWithScope({}, { storage });
 
@@ -393,7 +393,7 @@ test('should_reject_invalid_shadow_identity_and_text', async () => {
   assert.equal(storage.records.size, 0);
 });
 
-test('should_still_find_pre_110_drafts_and_migrate_them_on_save', async () => {
+test('should_still_find_pre_110_drafts_and_migrate_them_when_a_new_shadow_is_saved', async () => {
   const storage = createStorage();
   // A pre-1.1.0 draft under the legacy key shape.
   storage.records.set('docs\na.md', { key: 'docs\na.md', root: 'docs', path: 'a.md', base: 'old-base', draft: 'old-draft', updatedAt: 1 });
@@ -408,7 +408,7 @@ test('should_still_find_pre_110_drafts_and_migrate_them_on_save', async () => {
   assert.equal(storage.records.has('docs\na.md'), false);
 });
 
-test('should_clear_both_key_shapes_and_tolerate_missing_drafts', async () => {
+test('should_clear_both_key_shapes_and_tolerate_missing_drafts_when_a_shadow_is_cleared', async () => {
   const storage = createStorage();
   storage.records.set('docs\na.md', { key: 'docs\na.md', root: 'docs', path: 'a.md', base: '', draft: 'x', updatedAt: 1 });
   const service = createServiceWithScope({}, { storage });
@@ -465,7 +465,7 @@ test('should_default_capabilities_when_the_adapter_answers_nothing', async () =>
   assert.deepEqual(await service.getCapabilities(), { directoryPicker: false, filePicker: false, writable: false });
 });
 
-test('should_map_capability_failures_to_a_structured_error', async () => {
+test('should_map_capability_failures_to_a_structured_error_when_the_adapter_breaks', async () => {
   const { createService: create } = await import('../lib/filesystem-service.js');
   const service = create({ adapter: stubAdapter({ capabilities: async () => { throw new Error('scope gone'); } }), state: {} }).service;
 
@@ -485,7 +485,7 @@ test('should_keep_the_original_error_as_cause_when_mapping', async () => {
 
 // --- integration: the full pick → list → read → shadow → write → clear path
 
-test('should_run_the_full_entry_lifecycle_and_keep_the_draft_until_disk_save', async () => {
+test('should_run_the_full_entry_lifecycle_and_keep_the_draft_until_a_disk_save_clears_it', async () => {
   const storage = createStorage();
   const scope = {
     showDirectoryPicker: async () => fakeDirectoryHandle('docs', [fakeFileHandle('note.md', '\uFEFFمتن روی دیسک')]),

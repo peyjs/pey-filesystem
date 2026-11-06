@@ -86,7 +86,7 @@ test('should_throw_structured_startup_error_when_activation_lacks_storage', asyn
   assert.equal(error.source, 'pey.filesystem');
 });
 
-test('should_refuse_every_method_after_deactivation_and_shutdown', async () => {
+test('should_refuse_every_method_when_the_plugin_has_deactivated_or_shut_down', async () => {
   const { context } = createPrepareContext();
   const provided = await prepare(context);
   const service = provided[0].object;
@@ -113,7 +113,7 @@ function fakeTextFile() {
   return { name: 'a.md', text: async () => 'x' };
 }
 
-test('should_refuse_every_method_after_shutdown_too', async () => {
+test('should_refuse_every_method_after_shutdown_when_the_core_uses_its_hook', async () => {
   const { context } = createPrepareContext();
   const provided = await prepare(context);
   const service = provided[0].object;
@@ -124,7 +124,7 @@ test('should_refuse_every_method_after_shutdown_too', async () => {
   await assert.rejects(() => service.readShadow('docs', 'a.md'), (error) => error?.code === 'SERVICE_UNAVAILABLE');
 });
 
-test('should_release_the_event_subscription_on_deactivation_without_double_release', async () => {
+test('should_release_the_event_subscription_when_deactivation_runs_without_a_double_release', async () => {
   const unsubscribed = [];
   const { context } = createPrepareContextWithUnsubscribe(unsubscribed);
   await prepare(context);
@@ -136,7 +136,7 @@ test('should_release_the_event_subscription_on_deactivation_without_double_relea
   assert.equal(unsubscribed.length, 1);
 });
 
-test('should_survive_repeated_teardown_and_reprepare_with_one_subscription', async () => {
+test('should_survive_repeated_teardown_and_reprepare_when_the_core_restarts_the_plugin', async () => {
   const unsubscribed = [];
   const { context } = createPrepareContextWithUnsubscribe(unsubscribed);
   await prepare(context);

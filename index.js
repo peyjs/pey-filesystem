@@ -52,8 +52,20 @@ export async function prepare(prepareContext) {
   state.storage = null;
   savedContext = prepareContext;
   lifecycle = null;
+  // The runtime dependency-loss safety net needs the Event Bus contract:
+  // its absence is a broken host, so it fails loudly at startup instead of
+  // silently never reporting a lost required dependency.
+  if (typeof prepareContext.events?.subscribe !== 'function') {
+    throw Object.assign(new Error('Prepare context does not provide an Event Bus'), {
+      code: 'FILESYSTEM_ADAPTER_INVALID',
+      source: PLUGIN_NAME,
+      type: 'startup',
+      timestamp: new Date().toISOString(),
+      detail: { reason: 'missing-event-bus' },
+    });
+  }
   unsubscribe?.();
-  unsubscribe = prepareContext.events?.subscribe('core:service-unavailable', handleServiceUnavailable) ?? null;
+  unsubscribe = prepareContext.events.subscribe('core:service-unavailable', handleServiceUnavailable);
   prepareContext.onDeactivated = () => teardown();
   prepareContext.onShutdown = async () => teardown();
 

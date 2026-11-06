@@ -14,25 +14,25 @@ const GOOD_ADAPTER = {
   writeEntry: async () => null,
 };
 
-test('should_load_and_validate_a_known_good_adapter', async () => {
+test('should_load_and_validate_a_known_good_adapter_when_the_identifier_resolves', async () => {
   const adapter = await loadEnvironmentAdapter('FakeAdapter', {}, {
     FakeAdapter: async () => GOOD_ADAPTER,
   });
   assert.equal(adapter, GOOD_ADAPTER);
 });
 
-test('should_reject_an_unknown_adapter_with_a_startup_error', async () => {
+test('should_reject_an_unknown_adapter_with_a_startup_error_when_the_registry_has_no_match', async () => {
   const error = await loadEnvironmentAdapter('NoSuchAdapter', {}, {}).catch((caught) => caught);
   assert.equal(error.code, 'FILESYSTEM_ADAPTER_NOT_FOUND');
   assert.equal(error.type, 'startup');
 });
 
-test('should_reject_a_non_string_identifier', async () => {
+test('should_reject_a_non_string_identifier_when_the_config_carries_one', async () => {
   const error = await loadEnvironmentAdapter(undefined, {}, {}).catch((caught) => caught);
   assert.equal(error.code, 'FILESYSTEM_ADAPTER_NOT_FOUND');
 });
 
-test('should_reject_an_adapter_missing_a_contract_method', async () => {
+test('should_reject_an_adapter_missing_a_contract_method_when_validation_runs', async () => {
   const incomplete = { ...GOOD_ADAPTER };
   delete incomplete.writeEntry;
 
@@ -43,7 +43,7 @@ test('should_reject_an_adapter_missing_a_contract_method', async () => {
   assert.equal(error.type, 'startup');
 });
 
-test('should_reject_a_broken_adapter_factory_with_its_own_code', async () => {
+test('should_reject_a_broken_adapter_factory_with_its_own_code_when_it_throws_one', async () => {
   const error = await loadEnvironmentAdapter('BrokenAdapter', {}, {
     BrokenAdapter: async () => {
       throw new Error('wasm failed');
@@ -53,7 +53,7 @@ test('should_reject_a_broken_adapter_factory_with_its_own_code', async () => {
   assert.equal(error.type, 'startup');
 });
 
-test('should_survive_a_null_loader_registry_argument', async () => {
+test('should_survive_a_null_loader_registry_argument_when_none_is_injected', async () => {
   const adapter = await loadEnvironmentAdapter('BrowserEnvironmentAdapter', {}, null);
   assert.equal(typeof adapter.capabilities, 'function');
 });

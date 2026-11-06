@@ -1,7 +1,7 @@
 # pey.filesystem
 
 [![AI](https://img.shields.io/badge/Built%20with-AI-blueviolet)](#)
-[![version](https://img.shields.io/badge/version-1.1.0-blue.svg)](#)
+[![version](https://img.shields.io/badge/version-1.1.1-blue.svg)](#)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Bonyan Architecture](https://img.shields.io/badge/bonyan-0.11-56c3bf)](https://github.com/barnevis/bonyan)
 
@@ -30,9 +30,10 @@
 - `index.js` — نقطه‌های ورود `prepare` و `activate` بنیان (لود آداپتور + سیم‌کشی).
 - `lib/filesystem-service.js` — پیاده‌سازی سرویس (فیلتر Markdown، BOM، خطاها، سایه‌ها).
 - `lib/environment-loader.js` — لودر و اعتبارسنج آداپتور محیط.
+- `lib/shadow-identity.js` — هویت و کلیدهای سایه (کلید مدرن `(id, path)` و کلید قدیمی ۱.۱.۰).
 - `lib/error.js` — خطای ساخت‌یافتهٔ مرز افزونه.
 - `adapters/browser-environment-adapter.js` — آداپتور محیط مرورگر (File System Access + مسیر جایگزین).
-- `tests/filesystem.test.js` + `tests/filesystem-service.test.js` + `tests/adapters/browser-environment-adapter.test.js` — تست‌های افزونه.
+- `tests/index.test.js` + `tests/filesystem-service.test.js` + `tests/environment-loader.test.js` + `tests/shadow-identity.test.js` + `tests/error.test.js` + `tests/adapters/browser-environment-adapter.test.js` + `tests/environment-adapter-contract.js` — تست‌های افزونه و سوئیت قرارداد مشترک آداپتور.
 - `docs/reference.md` — مرجع کامل خودکفا.
 - `CHANGELOG.md` — تاریخچه نسخه‌های این افزونه.
 
