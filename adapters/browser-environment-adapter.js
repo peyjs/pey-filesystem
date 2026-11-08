@@ -91,7 +91,7 @@ export function createBrowserEnvironmentAdapter(config = {}) {
         if (isAbort(error)) {
           return null;
         }
-        throw createFilesystemError('FILESYSTEM_PICK_FAILED', 'Directory picker failed');
+        throw createFilesystemError('FILESYSTEM_PICK_FAILED', 'Directory picker failed', { cause: error?.message ?? String(error) });
       }
     },
 
@@ -115,7 +115,7 @@ export function createBrowserEnvironmentAdapter(config = {}) {
         if (isAbort(error)) {
           return null;
         }
-        throw createFilesystemError('FILESYSTEM_PICK_FAILED', 'File picker failed');
+        throw createFilesystemError('FILESYSTEM_PICK_FAILED', 'File picker failed', { cause: error?.message ?? String(error) });
       }
     },
 

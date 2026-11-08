@@ -41,6 +41,30 @@ test('should_register_service_when_prepared', async () => {
   assert.equal(typeof context.onDeactivated, 'function');
 });
 
+test('should_fail_startup_with_dedicated_code_when_event_bus_is_missing', async () => {
+  // A missing Event Bus is a broken host wiring, not an adapter problem:
+  // it carries its own startup code instead of FILESYSTEM_ADAPTER_INVALID.
+  const { context } = createPrepareContext();
+  delete context.events;
+  await assert.rejects(
+    prepare(context),
+    (error) => error?.code === 'FILESYSTEM_EVENT_BUS_UNAVAILABLE'
+      && error?.type === 'startup'
+      && error?.source === 'pey.filesystem'
+      && error?.detail?.reason === 'missing-event-bus',
+  );
+});
+
+test('should_not_stay_subscribed_when_adapter_load_fails_during_prepare', async () => {
+  // The dependency-loss safety net is taken after the failible adapter
+  // load: a prepare that throws must leave no subscription (and no saved
+  // context) behind for a plugin that never activated.
+  const { context, subscribed } = createPrepareContext();
+  context.config = { adapter: 'AdapterThatDoesNotExist' };
+  await assert.rejects(prepare(context));
+  assert.deepEqual(subscribed, [], 'a failed prepare must not leave the safety net subscribed');
+});
+
 test('should_fail_clearly_when_storage_is_missing', async () => {
   const { context } = createPrepareContext();
   await prepare(context);

@@ -46,35 +46,46 @@ function teardown() {
  * Prepares the configured environment adapter and the declared service.
  * @param {object} prepareContext Bonyan preparation context.
  * @returns {Promise<Array>} Service registration.
- * @throws {object} Structured startup error when the adapter fails.
+ * @throws {object} Structured startup error when the Event Bus contract or
+ *   the adapter is broken.
  */
 export async function prepare(prepareContext) {
   state.storage = null;
-  savedContext = prepareContext;
   lifecycle = null;
+  unsubscribe?.();
+  unsubscribe = null;
+  savedContext = prepareContext;
   // The runtime dependency-loss safety net needs the Event Bus contract:
   // its absence is a broken host, so it fails loudly at startup instead of
-  // silently never reporting a lost required dependency.
+  // silently never reporting a lost required dependency. This is a host
+  // wiring failure, not an adapter one — it carries its own code.
   if (typeof prepareContext.events?.subscribe !== 'function') {
-    throw Object.assign(new Error('Prepare context does not provide an Event Bus'), {
-      code: 'FILESYSTEM_ADAPTER_INVALID',
-      source: PLUGIN_NAME,
-      type: 'startup',
-      timestamp: new Date().toISOString(),
-      detail: { reason: 'missing-event-bus' },
-    });
+    savedContext = null;
+    throw createFilesystemError(
+      'FILESYSTEM_EVENT_BUS_UNAVAILABLE',
+      'Prepare context does not provide an Event Bus',
+      { reason: 'missing-event-bus' },
+      'startup',
+    );
   }
-  unsubscribe?.();
-  unsubscribe = prepareContext.events.subscribe('core:service-unavailable', handleServiceUnavailable);
   prepareContext.onDeactivated = () => teardown();
   prepareContext.onShutdown = async () => teardown();
 
-  const config = prepareContext.config ?? {};
-  const adapter = await loadEnvironmentAdapter(
-    config.adapter ?? 'BrowserEnvironmentAdapter',
-    config.adapterConfig ?? {},
-  );
-  lifecycle = createService({ adapter, state });
+  try {
+    const config = prepareContext.config ?? {};
+    const adapter = await loadEnvironmentAdapter(
+      config.adapter ?? 'BrowserEnvironmentAdapter',
+      config.adapterConfig ?? {},
+    );
+    lifecycle = createService({ adapter, state });
+  } catch (error) {
+    // The failible step ran before the subscription was taken: release the
+    // saved context so a never-activated plugin cannot report a critical
+    // dependency loss later, then rethrow for the Core.
+    teardown();
+    throw error;
+  }
+  unsubscribe = prepareContext.events.subscribe('core:service-unavailable', handleServiceUnavailable);
   return [{ name: SERVICE_NAME, object: lifecycle.service }];
 }
 

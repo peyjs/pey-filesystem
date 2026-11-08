@@ -78,6 +78,7 @@
 - `FILESYSTEM_STORAGE_UNAVAILABLE` — سرویس ذخیره در دسترس نیست یا فروشگاه `disk-drafts` پیکربندی نشده (سایه‌ها).
 - `SERVICE_UNAVAILABLE` — فراخوانی پس از غیرفعال‌شدن/خاموشی.
 - startup آداپتور: `FILESYSTEM_ADAPTER_NOT_FOUND` / `FILESYSTEM_ADAPTER_INVALID` / `FILESYSTEM_ADAPTER_INITIALIZATION_FAILED`.
+- startup زمینه: `FILESYSTEM_EVENT_BUS_UNAVAILABLE` — زمینهٔ prepare رویداد `core:service-unavailable` را پشتیبانی نمی‌کند (`detail.reason: 'missing-event-bus'`)؛ شکست سیم‌کشی میزبان است، نه آداپتور.
 - نکتهٔ دوکاربردی: `FILESYSTEM_ADAPTER_INVALID` در `getCapabilities` با `type: 'operational'` هم به‌کار می‌رود (شکست زمان‌اجراِ گزارش قابلیت‌ها)؛ خانوادهٔ کد مشترک است، تفکیک با `type` انجام می‌شود.
 
 ## وابستگی‌ها
