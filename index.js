@@ -97,6 +97,12 @@ export async function prepare(prepareContext) {
 export async function activate(services) {
   const storage = services[STORAGE_SERVICE];
   if (!storage) {
+    // Activation failed: the plugin never runs. Release the dependency-loss
+    // safety net (and the saved context) here too — the Core only
+    // guarantees deactivation hooks for the prepare path, so a
+    // never-activated plugin could otherwise report a critical
+    // REQUIRED_DEPENDENCY_LOST for a service it never used.
+    teardown();
     throw createFilesystemError(
       'FILESYSTEM_STORAGE_UNAVAILABLE',
       `Required service is unavailable: ${STORAGE_SERVICE}`,

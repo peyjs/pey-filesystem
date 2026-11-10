@@ -54,7 +54,7 @@
 ۳. محتوای سایه در انبار محلی میزبان می‌ماند؛ چیزی از دستگاه کاربر به بیرون نمی‌رود.
 
 ## ۸. خطاها
-`FILESYSTEM_PICK_FAILED`، `FILESYSTEM_PERMISSION_DENIED`، `FILESYSTEM_READ_FAILED`، `FILESYSTEM_WRITE_FAILED`، `FILESYSTEM_INVALID_ENTRY`، `FILESYSTEM_STORAGE_UNAVAILABLE`، `SERVICE_UNAVAILABLE`؛ و کدهای startup آداپتور: `FILESYSTEM_ADAPTER_NOT_FOUND`، `FILESYSTEM_ADAPTER_INVALID`، `FILESYSTEM_ADAPTER_INITIALIZATION_FAILED`. `source` همهٔ خطاها نام افزونه (`pey.filesystem`) است و خطاهای نگاشت‌شده علت اصلی را در `detail.cause` نگه می‌دارند.
+`FILESYSTEM_PICK_FAILED`، `FILESYSTEM_PERMISSION_DENIED`، `FILESYSTEM_READ_FAILED`، `FILESYSTEM_WRITE_FAILED`، `FILESYSTEM_INVALID_ENTRY`، `FILESYSTEM_STORAGE_UNAVAILABLE`، `SERVICE_UNAVAILABLE`؛ و کدهای startup آداپتور: `FILESYSTEM_ADAPTER_NOT_FOUND`، `FILESYSTEM_ADAPTER_INVALID`، `FILESYSTEM_ADAPTER_INITIALIZATION_FAILED`؛ و کد startup زمینه: `FILESYSTEM_EVENT_BUS_UNAVAILABLE` (نبود Event Bus در prepare — شکست سیم‌کشی میزبان، نه آداپتور). `source` همهٔ خطاها نام افزونه (`pey.filesystem`) است و خطاهای نگاشت‌شده علت اصلی را در `detail.cause` نگه می‌دارند.
 
 ## ۹. ایونت‌ها
 هیچ. انتخاب، خواندن و نوشتن نتیجه‌ی بازگشتی دارند؛ گم‌شدن وابستگی از مسیر critical گزارش می‌شود.

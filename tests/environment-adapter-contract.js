@@ -57,15 +57,19 @@ export function runEnvironmentAdapterContractSuite(label, createAdapter) {
     assert.equal(await file.pickFile(), null);
   });
 
-  test(`[${label}] should_fail_structured_when_a_picker_fails_for_real`, async () => {
+  test(`[${label}] should_fail_structured_with_the_original_cause_when_a_picker_fails_for_real`, async () => {
     const boom = () => {
       throw new Error('boom');
     };
     const directory = createAdapter({ scope: { showDirectoryPicker: boom } });
     const file = createAdapter({ scope: { showOpenFilePicker: boom } });
 
-    await rejectsWithCode(directory.pickDirectory(), 'FILESYSTEM_PICK_FAILED');
-    await rejectsWithCode(file.pickFile(), 'FILESYSTEM_PICK_FAILED');
+    const directoryError = await directory.pickDirectory().catch((caught) => caught);
+    assert.equal(directoryError.code, 'FILESYSTEM_PICK_FAILED');
+    assert.equal(directoryError.detail.cause, 'boom', 'the platform failure stays in detail.cause');
+    const fileError = await file.pickFile().catch((caught) => caught);
+    assert.equal(fileError.code, 'FILESYSTEM_PICK_FAILED');
+    assert.equal(fileError.detail.cause, 'boom', 'the platform failure stays in detail.cause');
   });
 
   test(`[${label}] should_unwrap_the_array_when_a_file_is_picked`, async () => {

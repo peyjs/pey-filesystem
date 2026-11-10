@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createBrowserEnvironmentAdapter } from '../adapters/browser-environment-adapter.js';
 import { createService, isMarkdownName } from '../lib/filesystem-service.js';
+import { makeRootId } from '../lib/shadow-identity.js';
 
 function createServiceWithScope(scope = {}, state = {}) {
   return createService({ adapter: createBrowserEnvironmentAdapter({ scope }), state }).service;
@@ -314,6 +315,33 @@ test('should_save_and_read_shadow_when_storage_is_bound', async () => {
   const shadow = await service.readShadow('docs', 'a.md');
   assert.equal(shadow.base, 'base');
   assert.equal(shadow.draft, 'draft');
+});
+
+test('should_return_exactly_the_declared_shape_when_reading_a_shadow_that_leaks_storage_fields', async () => {
+  // The storage record carries internal bookkeeping (key, rootId); the
+  // service must shape the output to exactly the fields the manifest
+  // declares — no implementation detail leaks through the boundary.
+  const records = new Map();
+  const storage = {
+    async read(collection, key) {
+      return records.get(key) ?? null;
+    },
+    async write(collection, record) {
+      records.set(record.key, record);
+    },
+    async delete(collection, key) {
+      records.delete(key);
+    },
+  };
+  const service = createServiceWithScope({}, { storage });
+  const entry = { name: 'docs', path: 'docs', rootId: makeRootId() };
+
+  await service.saveShadow(entry, 'a.md', 'base', 'draft');
+  const stored = [...records.values()][0];
+  assert.ok('key' in stored && 'rootId' in stored, 'the storage record itself keeps its bookkeeping');
+
+  const shadow = await service.readShadow(entry, 'a.md');
+  assert.deepEqual(shadow, { root: 'docs', path: 'a.md', base: 'base', draft: 'draft', updatedAt: shadow.updatedAt });
 });
 
 test('should_return_null_when_shadow_is_missing', async () => {

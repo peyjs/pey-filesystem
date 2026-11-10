@@ -55,6 +55,31 @@ test('should_fail_startup_with_dedicated_code_when_event_bus_is_missing', async 
   );
 });
 
+test('should_not_stay_subscribed_when_activation_lacks_storage', async () => {
+  // The Core only guarantees deactivation hooks for the prepare path: a
+  // failed activation must tear its own safety net down, or a
+  // never-activated plugin could report a critical dependency loss later.
+  const { context, subscribed } = createPrepareContext();
+  const reported = [];
+  context.reportCriticalError = (error) => reported.push(error);
+  let released = false;
+  const innerSubscribe = context.events.subscribe.bind(context.events);
+  context.events.subscribe = (type, handler) => {
+    const unsubscribe = innerSubscribe(type, handler);
+    return () => {
+      released = true;
+      unsubscribe();
+    };
+  };
+  await prepare(context);
+
+  await assert.rejects(activate({}), (error) => error?.code === 'FILESYSTEM_STORAGE_UNAVAILABLE');
+
+  assert.equal(released, true, 'a failed activation must release the safety net subscription');
+  assert.deepEqual(subscribed.map(([type]) => type), ['core:service-unavailable']);
+  assert.deepEqual(reported, []);
+});
+
 test('should_not_stay_subscribed_when_adapter_load_fails_during_prepare', async () => {
   // The dependency-loss safety net is taken after the failible adapter
   // load: a prepare that throws must leave no subscription (and no saved
