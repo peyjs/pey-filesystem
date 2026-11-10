@@ -342,6 +342,7 @@ test('should_return_exactly_the_declared_shape_when_reading_a_shadow_that_leaks_
 
   const shadow = await service.readShadow(entry, 'a.md');
   assert.deepEqual(shadow, { root: 'docs', path: 'a.md', base: 'base', draft: 'draft', updatedAt: shadow.updatedAt });
+  assert.equal(typeof shadow.updatedAt, 'number', 'updatedAt is pinned to the declared numeric type');
 });
 
 test('should_return_null_when_shadow_is_missing', async () => {
