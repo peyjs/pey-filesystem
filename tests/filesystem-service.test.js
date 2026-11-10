@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createBrowserEnvironmentAdapter } from '../adapters/browser-environment-adapter.js';
 import { createService, isMarkdownName } from '../lib/filesystem-service.js';
+import { fakeDirectoryHandle, fakeFileHandle, rejectsWithCode } from './environment-adapter-fixtures.js';
 import { makeRootId } from '../lib/shadow-identity.js';
 
 function createServiceWithScope(scope = {}, state = {}) {
@@ -14,53 +15,8 @@ function fakeFile(name, text, relativePath = '') {
   return { name, webkitRelativePath: relativePath, text: async () => text };
 }
 
-function fakeFileHandle(name, text, permission = 'granted') {
-  const state = { permission, written: null, requested: false };
-  return {
-    kind: 'file',
-    name,
-    written: () => state.written,
-    wasRequested: () => state.requested,
-    async queryPermission() {
-      return state.permission;
-    },
-    async requestPermission() {
-      state.requested = true;
-      if (state.permission !== 'denied') {
-        state.permission = 'granted';
-      }
-      return state.permission;
-    },
-    async getFile() {
-      return { text: async () => text };
-    },
-    async createWritable() {
-      return {
-        write: async (content) => {
-          state.written = content;
-        },
-        close: async () => {},
-      };
-    },
-  };
-}
-
-function fakeDirectoryHandle(name, children = []) {
-  return {
-    kind: 'directory',
-    name,
-    async *values() {
-      yield* children;
-    },
-  };
-}
-
 function abortPicker() {
   throw Object.assign(new Error('cancelled'), { name: 'AbortError' });
-}
-
-function rejectsWithCode(promise, code) {
-  return assert.rejects(promise, (error) => error?.code === code);
 }
 
 test('should_match_markdown_names_when_the_extension_varies_in_case', () => {
