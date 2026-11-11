@@ -19,6 +19,17 @@ function abortPicker() {
   throw Object.assign(new Error('cancelled'), { name: 'AbortError' });
 }
 
+test('should_shape_a_partial_capability_report_to_the_declared_booleans_when_the_adapter_answers_loosely', async () => {
+  // A partial adapter report never leaks through raw: every non-true field
+  // reads as false, so the returned shape always matches the manifest.
+  const looseAdapter = {
+    capabilities: async () => ({ directoryPicker: true, filePicker: 'yes' }),
+  };
+  const service = createService({ adapter: looseAdapter, state: {} }).service;
+
+  assert.deepEqual(await service.getCapabilities(), { directoryPicker: true, filePicker: false, writable: false });
+});
+
 test('should_match_markdown_names_when_the_extension_varies_in_case', () => {
   assert.equal(isMarkdownName('note.md'), true);
   assert.equal(isMarkdownName('NOTE.MARKDOWN'), true);
@@ -430,36 +441,31 @@ function stubAdapter(overrides = {}) {
 }
 
 test('should_fail_structured_when_the_adapter_returns_no_entry_list', async () => {
-  const { createService: create } = await import('../lib/filesystem-service.js');
-  const service = create({ adapter: stubAdapter({ listEntries: async () => null }), state: {} }).service;
+  const service = createService({ adapter: stubAdapter({ listEntries: async () => null }), state: {} }).service;
 
   await rejectsWithCode(service.listDirectory({}), 'FILESYSTEM_READ_FAILED');
 });
 
 test('should_fail_structured_when_the_adapter_returns_no_text', async () => {
-  const { createService: create } = await import('../lib/filesystem-service.js');
-  const service = create({ adapter: stubAdapter({ readEntry: async () => 42 }), state: {} }).service;
+  const service = createService({ adapter: stubAdapter({ readEntry: async () => 42 }), state: {} }).service;
 
   await rejectsWithCode(service.readEntry({ name: 'a.md', path: 'a.md' }), 'FILESYSTEM_READ_FAILED');
 });
 
 test('should_default_capabilities_when_the_adapter_answers_nothing', async () => {
-  const { createService: create } = await import('../lib/filesystem-service.js');
-  const service = create({ adapter: stubAdapter({ capabilities: async () => undefined }), state: {} }).service;
+  const service = createService({ adapter: stubAdapter({ capabilities: async () => undefined }), state: {} }).service;
 
   assert.deepEqual(await service.getCapabilities(), { directoryPicker: false, filePicker: false, writable: false });
 });
 
 test('should_map_capability_failures_to_a_structured_error_when_the_adapter_breaks', async () => {
-  const { createService: create } = await import('../lib/filesystem-service.js');
-  const service = create({ adapter: stubAdapter({ capabilities: async () => { throw new Error('scope gone'); } }), state: {} }).service;
+  const service = createService({ adapter: stubAdapter({ capabilities: async () => { throw new Error('scope gone'); } }), state: {} }).service;
 
   await rejectsWithCode(service.getCapabilities(), 'FILESYSTEM_ADAPTER_INVALID');
 });
 
 test('should_keep_the_original_error_as_cause_when_mapping', async () => {
-  const { createService: create } = await import('../lib/filesystem-service.js');
-  const service = create({ adapter: stubAdapter({
+  const service = createService({ adapter: stubAdapter({
     writeEntry: async () => { throw new Error('disk quota exceeded'); },
   }), state: {} }).service;
 
@@ -507,7 +513,6 @@ test('should_run_the_full_entry_lifecycle_and_keep_the_draft_until_a_disk_save_c
 // --- real storage failures in the shadow methods ---------------------------
 
 test('should_fail_structured_when_storage_rejects_the_shadow_save', async () => {
-  const { createService: create } = await import('../lib/filesystem-service.js');
   const failingStorage = {
     read: async () => {
       throw Object.assign(new Error('missing'), { code: 'RECORD_NOT_FOUND' });
@@ -517,7 +522,7 @@ test('should_fail_structured_when_storage_rejects_the_shadow_save', async () => 
     },
     delete: async () => {},
   };
-  const service = create({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
+  const service = createService({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
 
   await rejectsWithCode(
     service.saveShadow({ rootId: 'root-1', name: 'docs' }, 'a.md', 'base', 'draft'),
@@ -526,7 +531,6 @@ test('should_fail_structured_when_storage_rejects_the_shadow_save', async () => 
 });
 
 test('should_fail_structured_when_storage_rejects_the_shadow_read', async () => {
-  const { createService: create } = await import('../lib/filesystem-service.js');
   const failingStorage = {
     read: async () => {
       throw new Error('indexeddb gone');
@@ -534,7 +538,7 @@ test('should_fail_structured_when_storage_rejects_the_shadow_read', async () => 
     write: async () => {},
     delete: async () => {},
   };
-  const service = create({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
+  const service = createService({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
 
   await rejectsWithCode(
     service.readShadow({ rootId: 'root-1', name: 'docs' }, 'a.md'),
@@ -543,7 +547,6 @@ test('should_fail_structured_when_storage_rejects_the_shadow_read', async () => 
 });
 
 test('should_fail_structured_when_storage_rejects_the_shadow_clear', async () => {
-  const { createService: create } = await import('../lib/filesystem-service.js');
   const failingStorage = {
     read: async () => {
       throw Object.assign(new Error('missing'), { code: 'RECORD_NOT_FOUND' });
@@ -553,7 +556,7 @@ test('should_fail_structured_when_storage_rejects_the_shadow_clear', async () =>
       throw new Error('indexeddb gone');
     },
   };
-  const service = create({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
+  const service = createService({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
 
   await rejectsWithCode(
     service.clearShadow({ rootId: 'root-1', name: 'docs' }, 'a.md'),
@@ -564,7 +567,6 @@ test('should_fail_structured_when_storage_rejects_the_shadow_clear', async () =>
 test('should_keep_errors_mapped_when_the_shadow_save_causes_a_coded_failure', async () => {
   // The adapter passthrough branch: a coded storage failure rides through
   // unchanged instead of being double-wrapped.
-  const { createService: create } = await import('../lib/filesystem-service.js');
   const coded = Object.assign(new Error('storage down'), { code: 'FILESYSTEM_STORAGE_UNAVAILABLE' });
   const failingStorage = {
     read: async () => {
@@ -575,7 +577,7 @@ test('should_keep_errors_mapped_when_the_shadow_save_causes_a_coded_failure', as
     },
     delete: async () => {},
   };
-  const service = create({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
+  const service = createService({ adapter: stubAdapter({}), state: { storage: failingStorage } }).service;
 
   await assert.rejects(
     () => service.saveShadow({ rootId: 'root-1', name: 'docs' }, 'a.md', 'base', 'draft'),

@@ -33,7 +33,7 @@
 - `lib/shadow-identity.js` — هویت و کلیدهای سایه (کلید مدرن `(id, path)` و کلید قدیمی ۱.۱.۰).
 - `lib/error.js` — خطای ساخت‌یافتهٔ مرز افزونه.
 - `adapters/browser-environment-adapter.js` — آداپتور محیط مرورگر (File System Access + مسیر جایگزین).
-- `tests/index.test.js` + `tests/filesystem-service.test.js` + `tests/environment-loader.test.js` + `tests/shadow-identity.test.js` + `tests/error.test.js` + `tests/adapters/browser-environment-adapter.test.js` + `tests/environment-adapter-contract.js` — تست‌های افزونه و سوئیت قرارداد مشترک آداپتور.
+- `tests/index.test.js` + `tests/filesystem-service.test.js` + `tests/environment-loader.test.js` + `tests/shadow-identity.test.js` + `tests/error.test.js` + `tests/adapters/browser-environment-adapter.test.js` + `tests/environment-adapter-contract.js` — تست‌های افزونه و سوئیت قرارداد مشترک آداپتور؛ `tests/environment-adapter-fixtures.js` — فیکسچرهای مشترک (فیک هندل‌ها، دایرکتوری، هلپر رد) که همهٔ آزمون‌های آداپتور با آن می‌رانند.
 - `docs/reference.md` — مرجع کامل خودکفا.
 - `CHANGELOG.md` — تاریخچه نسخه‌های این افزونه.
 
