@@ -476,7 +476,7 @@ test('should_keep_the_original_error_as_cause_when_mapping', async () => {
 
 // --- integration: the full pick → list → read → shadow → write → clear path
 
-test('should_run_the_full_entry_lifecycle_and_keep_the_draft_until_a_disk_save_clears_it', async () => {
+test('should_keep_the_draft_until_a_disk_save_clears_it_when_the_full_entry_lifecycle_runs', async () => {
   const storage = createStorage();
   const scope = {
     showDirectoryPicker: async () => fakeDirectoryHandle('docs', [fakeFileHandle('note.md', '\uFEFFمتن روی دیسک')]),
