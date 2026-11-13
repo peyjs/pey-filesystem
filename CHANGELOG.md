@@ -1,8 +1,6 @@
 # Changelog — pey.filesystem
 
-## [1.2.0] - 1405-08-19
-
-Round-3 through round-8 review fixes (all unpublished; one release); a new startup error code (additive, MINOR).
+## [1.2.0] - 1405-08-22
 
 ### Fixed
 
@@ -18,8 +16,6 @@ Round-3 through round-8 review fixes (all unpublished; one release); a new start
 - Startup tests for the missing Event Bus (code/type/detail), the adapter-load-failure ordering, `updatedAt` type pinning in the `readShadow` shape test, and the shared contract suite coverage (92 tests).
 
 ## [1.1.1] - 1405-08-15
-
-رفع یافته‌های بازبینی؛ بدون تغییر قرارداد.
 
 ### بازبینی دوم
 
