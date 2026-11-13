@@ -1,21 +1,21 @@
-# تاریخچه نسخه‌های pey.filesystem
+# Changelog — pey.filesystem
 
 ## [1.2.0] - 1405-08-19
 
-رفع یافته‌های بازبینی دورهای سوم تا هفتم؛ کد خطای startup تازه (افزودنی، MINOR).
+Round-3 through round-8 review fixes (all unpublished; one release); a new startup error code (additive, MINOR).
 
-### اصلاح
+### Fixed
 
-- غیاب Event Bus در prepare اکنون با کد اختصاصی `FILESYSTEM_EVENT_BUS_UNAVAILABLE` (از طریق `createFilesystemError` با `type: 'startup'`) گزارش می‌شود، نه `FILESYSTEM_ADAPTER_INVALID` — شکست سیم‌کشی میزبان دیگر به پیکربندی اشتباه آداپتور شبیه نیست.
-- ترتیب prepare: لود شکست‌پذیر آداپتور پیش از اشتراک `core:service-unavailable` انجام می‌شود و در مسیر شکست، زمینهٔ ذخیره‌شده پاک‌سازی می‌شود — افزونه‌ای که هرگز فعال نشده دیگر نمی‌تواند گزارش critical کاذب «گم‌شدن وابستگی» بدهد (آزمون افزوده شد).
-- خطای `FILESYSTEM_PICK_FAILED` آداپتور مرورگر علت اصلی picker را در `detail.cause` نگه می‌دارد — هم‌سو با سیاست مستند و الگوی `ensurePermission`.
-- خروجی `readShadow` دقیقاً به فیلدهای اعلام‌شدهٔ مانیفست شکل می‌گیرد (`{ root, path, base, draft, updatedAt }`)؛ کلید انبار و `rootId` (جزئیات پیاده‌سازی) دیگر از مرز سرویس نشت نمی‌کنند.
-- خروجی `getCapabilities` دقیقاً به سه بولینِ اعلام‌شدهٔ مانیفست شکل می‌گیرد (هر فیلد غیر-true یعنی false) — گزارش ناقص آداپتور دیگر خام از مرز عبور نمی‌کند؛ فیکسچرهای تکراری آزمون سرویس از ماژول مشترک `environment-adapter-fixtures` import می‌شوند (سه سازندهٔ تحت‌اللفظی تکراری حذف شد)؛ شاخهٔ مردهٔ `FILESYSTEM_INVALID_ENTRY` در catch `saveShadow` هم حذف شد — بی‌اثر از نظر رفتاری.
-- شکست `activate` (نبود سرویس ذخیره) هم شبکهٔ امن گم‌شدن وابستگی را آزاد می‌کند — مسیر «prepare موفق، activate ناموفق» دیگر اشتراکی باقی نمی‌گذارد که افزونهٔ هرگز فعال‌نشده بتواند گزارش critical کاذب بدهد (آزمون افزوده شد).
+- A missing Event Bus in `prepare` reports the dedicated `FILESYSTEM_EVENT_BUS_UNAVAILABLE` (via `createFilesystemError`, `type: 'startup'`) instead of reusing an operational code.
+- `prepare` ordering: the fallible adapter load runs BEFORE the `core:service-unavailable` subscription, and the failure path tears the safety net down with the stored context — a failed activate (missing storage service) releases the lost-dependency net too, so the "prepared but not activated" state can no longer leak a listener.
+- The browser adapter's `FILESYSTEM_PICK_FAILED` keeps the original picker error in `detail.cause`, matching the documented policy and the `ensurePickable` pattern.
+- `readShadow` output is shaped to exactly the manifest-declared fields (`{ root, path, base, draft, updatedAt }`); storage keys and internal ids never leak.
+- `getCapabilities` output is shaped to exactly the three declared booleans (any non-`true` field reads as `false`) — a partial adapter report can no longer pass as capabilities.
+- `getCapabilities` is normalized (no dynamic re-import), and the README/CHANGELOG match the behavior.
 
-### آزمون
+### Tests
 
-- آزمون startup نبود Event Bus (کد/type/detail، با سنجاق نوعی `updatedAt` در آزمون شکل `readShadow`)، آزمون «شکست لود آداپتور اشتراکی باقی نمی‌گذارد»، آزمون «شکست activate اشتراکی باقی نمی‌گذارد»، هم‌خوانی `detail.cause` خطای pick در سوئیت قرارداد و `deepEqual` شکل کامل `readShadow` افزوده شد؛ آزمون «شکل ناقص گزارش قابلیت به بولین‌های اعلام‌شده» (افزوده در رفع دور هفتم) همین فهرست را کامل می‌کند (۹۲ آزمون).
+- Startup tests for the missing Event Bus (code/type/detail), the adapter-load-failure ordering, `updatedAt` type pinning in the `readShadow` shape test, and the shared contract suite coverage (92 tests).
 
 ## [1.1.1] - 1405-08-15
 
