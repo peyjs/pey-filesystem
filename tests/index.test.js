@@ -119,10 +119,45 @@ test('should_report_critical_when_storage_is_lost', async () => {
   handler({ data: { serviceName: 'other.service' } });
   assert.deepEqual(reported, []);
   handler({ data: { serviceName: 'pey.storage.service' } });
+  // The report is deferred to a microtask: it must land after the whole
+  // core delivery pass has finished (see the delivery-pass test below).
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(reported.length, 1);
   assert.equal(reported[0].code, 'REQUIRED_DEPENDENCY_LOST');
   assert.equal(reported[0].type, 'critical');
   assert.equal(reported[0].source, 'pey.filesystem');
+});
+
+test('should_let_other_subscribers_hear_the_unavailable_event_when_the_plugin_reports_the_loss', async () => {
+  // F-03: reportCriticalError deactivates the plugin, and deactivation
+  // unsubscribes THIS listener mid-delivery — the core's delivery loop
+  // walks the live subscriber array, so a synchronous report would splice
+  // during the pass and the next subscriber would be skipped, never hearing
+  // the event. The deferred report must let the whole pass finish.
+  const { context, subscribed } = createPrepareContext();
+  const reported = [];
+  const secondCalls = [];
+  context.reportCriticalError = (error) => {
+    reported.push(error);
+    // Mirror the core: the report itself deactivates the plugin, and the
+    // deactivation unsubscribes our registration from the walked array.
+    context.onDeactivated?.();
+  };
+  await prepare(context);
+  await activate({ 'pey.storage.service': createStorage() });
+  const handler = subscribed.find(([type]) => type === 'core:service-unavailable')?.[1];
+
+  // The core's live listener array: ours first, another plugin's second —
+  // delivered with for...of over the array itself (splices during the pass
+  // shift elements, exactly like the real bus).
+  const listeners = [handler, (event) => secondCalls.push(event?.data?.serviceName)];
+  for (const listener of listeners) {
+    listener({ data: { serviceName: 'pey.storage.service' } });
+  }
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(reported.length, 1, 'the loss is reported exactly once');
+  assert.equal(secondCalls.length, 1, 'the next subscriber still hears the event');
 });
 
 test('should_throw_structured_startup_error_when_activation_lacks_storage', async () => {

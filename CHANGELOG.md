@@ -1,5 +1,20 @@
 # Changelog — pey.filesystem
 
+## [1.3.0] - 1405-08-25
+
+### Fixed
+
+- **Shadow drafts survive a re-pick and a page reload.** The picked root's identity used to be re-minted at every pick, so drafts saved under one pick were unreachable after re-selecting the same folder. The picked handle (structured-cloneable) is now persisted by folder name on storage; a re-pick of the same folder (`handle.isSameEntry`) reuses the minted root id instead of orphaning its drafts. Best-effort: without storage or a comparable handle, the pick falls back to a fresh id.
+- **Same-named folders can no longer erase each other's legacy drafts.** The pre-1.1.0 key shapes are label-scoped (the 1.0.0 format could not tell same-named folders apart): an entry save or clear with a rootId now never deletes another same-named folder's old draft. Legacy migration deletes happen only in label mode.
+- **Pre-1.1.0 webkitdirectory drafts are actually found.** The 1.0.0 format stored the full `webkitRelativePath` (label repeated as the first path segment); the read-only migration fallback now tries that key shape in addition to the 1.1.0 one — matching what the docs always promised.
+- **Critical loss reports no longer break the core's delivery pass.** Reporting a lost storage service deactivates the plugin, which unsubscribed this listener mid-delivery — the core walks the live subscriber array, so the next subscriber was skipped and never heard `core:service-unavailable`. The report is now deferred to a microtask, after the whole pass has finished.
+- **Malformed adapter pick output fails the pick.** A bare string or an array from the adapter used to be spread into a fabricated entry object; the pick result is now shaped to exactly `{ name, path, handle }` and a malformed shape fails with `FILESYSTEM_PICK_FAILED`.
+- **Write/read outcomes are honest about permissions.** A handle without a permission API is an unwritable handle (`writeEntry` → null, the caller's fallback) instead of a permission denial; reads without a permission API are attempted directly. A permission revoked between the round-trip and the actual access (`NotAllowedError`) now maps to `FILESYSTEM_PERMISSION_DENIED` instead of `READ_FAILED`/`WRITE_FAILED`.
+- **A broken `abort` can no longer mask the original write failure.** An abort that is missing, rejects, or throws synchronously is contained; the original error always surfaces with its cause.
+- **Boundary validation with named reasons.** `listDirectory` rejects a non-object argument (`reason: 'not-walkable'`) and reasons walk failures (`reason: 'walk-failed'`); entries without a usable path are dropped instead of published with `undefined`; `collectEntries` keeps the name/path pair consistent and fails loudly (`reason: 'duplicate-path'`) when two entries land on the same path; `writeEntry` rejects a non-object entry (`reason: 'invalid-entry'`) and an adapter that omits the result (`reason: 'no-result'`) instead of masquerading as the "unwritable handle" null; the write result carries the entry's `rootId` so the freshly written file's shadow is addressable immediately.
+- **Shadow paths are normalized.** Duplicate slashes, `.` segments and lexically-resolved `..` collapse, so one file cannot own two drafts under two spellings; a shadow entry without a name is rejected instead of storing an empty display root.
+- **Depth cap pinned to the docs.** The walk limit is now stated precisely (folders up to depth 16, root = depth 0; deeper files are skipped without a signal) in the requirements and the reference.
+
 ## [1.2.0] - 1405-08-22
 
 ### Fixed

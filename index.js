@@ -19,12 +19,26 @@ function handleServiceUnavailable(event) {
   if (event?.data?.serviceName !== STORAGE_SERVICE || !savedContext) {
     return;
   }
-  savedContext.reportCriticalError({
-    code: 'REQUIRED_DEPENDENCY_LOST',
-    message: `Required service ${STORAGE_SERVICE} is no longer available`,
-    source: PLUGIN_NAME,
-    type: 'critical',
-    timestamp: new Date().toISOString(),
+  const context = savedContext;
+  // Report OUTSIDE the delivery pass: reportCriticalError deactivates this
+  // plugin, and deactivation unsubscribes THIS listener mid-delivery — the
+  // core's delivery loop walks the live subscriber array, so splicing now
+  // would shift the next subscriber into a visited position and it would
+  // never hear the event. The microtask runs after the whole publish pass
+  // has finished.
+  queueMicrotask(() => {
+    if (savedContext !== context) {
+      // Torn down (or re-prepared) before the report could fire: the
+      // registration that captured this context is gone.
+      return;
+    }
+    context.reportCriticalError({
+      code: 'REQUIRED_DEPENDENCY_LOST',
+      message: `Required service ${STORAGE_SERVICE} is no longer available`,
+      source: PLUGIN_NAME,
+      type: 'critical',
+      timestamp: new Date().toISOString(),
+    });
   });
 }
 

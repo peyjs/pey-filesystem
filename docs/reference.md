@@ -36,7 +36,7 @@
 
 - **`BrowserEnvironmentAdapter`** — File System Access API + مسیر جایگزین ورودی دایرکتوری؛ `adapterConfig.scope` برای تست جایگزین global می‌شود (مقدار غیرآبجکت به global برمی‌گردد).
 - آداپتور تازه (Capacitor، Tauri و…) همین شش متد را پیاده می‌کند: `capabilities`، `pickDirectory`، `pickFile`، `listEntries`، `readEntry`، `writeEntry`. (جمع‌آوری لیست تختِ فایل‌ها شکل‌دهی دادهٔ خالص است و در سرویس انجام می‌شود، نه آداپتور.) آداپتور ناشناخته/ناقص خطای startup می‌دهد (`FILESYSTEM_ADAPTER_NOT_FOUND` / `_INVALID` / `_INITIALIZATION_FAILED`).
-- پیمایش `listEntries` محدود است: عمق تا ۱۶، پرش از `.git` و `node_modules`، زیرپوشهٔ ناخوانا نادیده گرفته می‌شود (ناخوانایی ریشه شکست است) و خروجی به‌ترتیب پایدار مسیر مرتب می‌شود.
+- پیمایش `listEntries` محدود است: پوشه‌ها تا عمق ۱۶ پیمایش می‌شوند (ریشه = عمق صفر؛ فایل‌های درون پوشه‌های عمیق‌تر بدون هیچ نشانه‌ای نادیده گرفته می‌شوند)، پرش از `.git` و `node_modules`، زیرپوشهٔ ناخوانا نادیده گرفته می‌شود (ناخوانایی ریشه شکست است) و خروجی به‌ترتیب پایدار مسیر مرتب می‌شود.
 
 ## شکل ورودی (Entry)
 
@@ -52,15 +52,15 @@
 
 ## API عمومی
 
-- `getCapabilities()` → `{ directoryPicker, filePicker, writable }` — `writable` یعنی ورودی‌های انتخاب‌شده «می‌توانند» بازنویسی شوند؛ تلاش نوشتن ممکن است با `FILESYSTEM_PERMISSION_DENIED` رد شود.
-- `pickDirectory()` / `pickFile()` — از آداپتور محیط؛ `null` وقتی picker نیست یا کاربر لغو کرد (لغو بر پایهٔ نام `AbortError` تشخیص داده می‌شود، نه نوع کلاس) — نتیجه، نه خطا.
+- `getCapabilities()` → `{ directoryPicker, filePicker, writable }` — `writable` فقط حضور pickerهایی را گزارش می‌دهد که می‌توانند هندل نوشتنی برگردانند؛ نوشتنی‌بودنِ واقعی هر هندل به مجوزِ همان هندل هنگام نوشتن بستگی دارد (`writeEntry` برای ورودی unwritable ‏`null` می‌دهد).
+- `pickDirectory()` / `pickFile()` — از آداپتور محیط؛ `null` وقتی picker نیست یا کاربر لغو کرد (لغو بر پایهٔ نام `AbortError` تشخیص داده می‌شود، نه نوع کلاس) — نتیجه، نه خطا. خروجی آداپتور دقیقاً به `{ name, path, handle }` شکل داده می‌شود و شکل بدشکل (رشته/آرایه) با `FILESYSTEM_PICK_FAILED` رد می‌شود. هویت ریشه (`rootId`) پایدار است: هندل انتخاب‌شده به‌همراه rootId به نام پوشه روی storage ذخیره می‌شود و pick دوبارهٔ همان پوشه (`handle.isSameEntry`) همان rootId را برمی‌گرداند تا پیش‌نویس‌ها با reload/re-pick زنده بمانند.
 - `listDirectory(directory)` — ورودی پوشهٔ انتخاب‌شده یا هندل خام؛ پیمایش بازگشتی در آداپتور، فیلتر Markdown در سرویس؛ لیست تخت با مسیر نسبی.
-- `collectEntries(files)` — شکل‌دهی لیست تخت در سرویس؛ ورودی غیرآرایه `FILESYSTEM_READ_FAILED` می‌دهد. ورودی‌های بدون `name` بی‌صدا کنار گذاشته می‌شوند (هم‌سو با فیلتر «فقط Markdown»).
-- `readEntry(entry)` — از handle (با round-trip اجازهٔ `read` در آداپتور) یا فایل ساده؛ BOM ابتدایی در سرویس حذف می‌شود؛ خروجی غیرمتنی آداپتور خطای ساختاریافته می‌دهد.
-- `writeEntry(entry, content)` — از handle (با round-trip اجازهٔ `readwrite` در آداپتور). شکست `write` یا `close` شکست عملیات است و جریان abort می‌شود تا هیچ نیمه‌نوشته‌ای commit نشود؛ خطای اصلی در `detail.cause` می‌ماند. وقتی ورودی handle نوشتنی ندارد ‏`null` برمی‌گرداند تا فراخوان fallback کند (مثلاً دانلود)؛ ‏`{ name, path }` در موفقیت.
-- `saveShadow(rootOrEntry, path, base, draft)` — ذخیرهٔ پیش‌نویس سایه (انبار `disk-drafts` روی `pey.storage.service`): مبنای دیسک + draft جاری؛ ‏`{ root, path, updatedAt }` برمی‌گرداند. آرگومان اول ترجیحاً همان entry انتخاب‌شده است (rootId ضرب‌شده دو پوشهٔ هم‌نام را جدا می‌کند)؛ رشتهٔ برچسب هم پذیرفته می‌شود. `base` و `draft` باید رشته باشند (`FILESYSTEM_INVALID_ENTRY`) و هرگز بی‌صدا به رشتهٔ خالی تبدیل نمی‌شوند.
-- `readShadow(rootOrEntry, path)` — خواندن سایه یا ‏`null`؛ پیش‌نویس‌های پیش از ۱.۱.۰ (کلید قدیمی برچسبی) هم پیدا می‌شوند و ذخیرهٔ تازه آن‌ها را به کلید تازه مهاجرت می‌دهد.
-- `clearShadow(rootOrEntry, path)` — حذف سایه (مثلاً بعد از ذخیرهٔ صریح روی دیسک)؛ حذف سایهٔ ناموجود بی‌اثر و موفق است؛ هر دو شکل کلید پاک می‌شوند.
+- `collectEntries(files)` — شکل‌دهی لیست تخت در سرویس؛ ورودی غیرآرایه `FILESYSTEM_READ_FAILED` می‌دهد. ورودی‌های بدون `name` بی‌صدا کنار گذاشته می‌شوند (هم‌سو با فیلتر «فقط Markdown»). برش سگمنت اول فقط برای `webkitRelativePath` انجام می‌شود؛ دو ورودی که به یک مسیر برسند با `FILESYSTEM_READ_FAILED` (reason: `duplicate-path`) رد می‌شوند تا پیش‌نویسی بی‌صدا از بین نرود.
+- `readEntry(entry)` — از handle (با round-trip اجازهٔ `read` در آداپتور) یا فایل ساده؛ BOM ابتدایی در سرویس حذف می‌شود؛ خروجی غیرمتنی آداپتور خطای ساختاریافته می‌دهد. هندل بدون API مجوز مستقیم خوانده می‌شود؛ `NotAllowedError` وسط خواندن به `FILESYSTEM_PERMISSION_DENIED` نگاشت می‌شود.
+- `writeEntry(entry, content)` — از handle (با round-trip اجازهٔ `readwrite` در آداپتور). شکست `write` یا `close` شکست عملیات است و جریان abort می‌شود تا هیچ نیمه‌نوشته‌ای commit نشود؛ خطای اصلی در `detail.cause` می‌ماند. وقتی ورودی handle نوشتنی ندارد یا API مجوز ندارد ‏`null` برمی‌گرداند تا فراخوان fallback کند (مثلاً دانلود)؛ ‏`{ name, path, rootId? }` در موفقیت (rootId از ورودی حمل می‌شود). ورودی غیرآبجکت با `FILESYSTEM_WRITE_FAILED` (reason: `invalid-entry`) رد می‌شود، نه `null`. `NotAllowedError` وسط نوشتن به `FILESYSTEM_PERMISSION_DENIED` نگاشت می‌شود؛ شکستِ `abort` هرگز خطای اصلی را نمی‌پوشاند.
+- `saveShadow(rootOrEntry, path, base, draft)` — ذخیرهٔ پیش‌نویس سایه (انبار `disk-drafts` روی `pey.storage.service`): مبنای دیسک + draft جاری؛ ‏`{ root, path, updatedAt }` برمی‌گرداند. آرگومان اول ترجیحاً همان entry انتخاب‌شده است (rootId ضرب‌شده دو پوشهٔ هم‌نام را جدا می‌کند)؛ رشتهٔ برچسب هم پذیرفته می‌شود. `base` و `draft` باید رشته باشند (`FILESYSTEM_INVALID_ENTRY`) و هرگز بی‌صدا به رشتهٔ خالی تبدیل نمی‌شوند؛ entry بدون `name` هم رد می‌شود (برچسب نمایشیِ خالی ذخیره نمی‌شود).
+- `readShadow(rootOrEntry, path)` — خواندن سایه یا ‏`null`؛ مسیر نرمال می‌شود (`./`، `//`، `..`). پیش‌نویس‌های پیش از ۱.۱.۰ در هر دو شکل کلید قدیمی خوانده می‌شوند: برچسبیِ ۱.۱.۰ و webkitdirectoryِ ۱.۰.۰ (برچسب تکرارشده به‌عنوان سگمنت اول مسیر) — fallback فقط-خواندنی است و فضای برچسبی (مشترک میان هم‌نام‌ها) را می‌خواند؛ پیش‌نویس ذخیره‌شده با برچسب هم از همین مسیر پیدا می‌شود.
+- `clearShadow(rootOrEntry, path)` — حذف سایه (مثلاً بعد از ذخیرهٔ صریح روی دیسک)؛ حذف سایهٔ ناموجود بی‌اثر و موفق است. در حالت برچسبی هر دو شکل کلید قدیمی هم پاک می‌شوند (مهاجرت)؛ در حالت rootId فقط کلید مدرن همین پوشه پاک می‌شود — کلید قدیمیِ پوشهٔ هم‌نام دیگر هرگز دست‌نخورده می‌ماند.
 
 ## هویت سایه
 

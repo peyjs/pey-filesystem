@@ -6,7 +6,8 @@ import { createFilesystemError } from '../lib/error.js';
 
 // Walk limits: a depth cap and a skip-list keep a huge tree from wedging
 // the UI, and an unreadable subfolder is skipped instead of aborting the
-// whole walk.
+// whole walk. Depth counts hops below the root (root files sit at 0), so a
+// file inside sixteen nested folders is the last one found.
 const MAX_WALK_DEPTH = 16;
 const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules']);
 
@@ -22,31 +23,54 @@ function isAbort(error) {
 }
 
 /**
+ * Maps the browser's permission-loss error onto the structured
+ * permission-denied error; anything else rides through unchanged so the
+ * service can tell "permission was revoked mid-flight" from "the disk
+ * failed".
+ * @param {unknown} error Caught error.
+ * @param {string} message Safe denial message.
+ * @returns {object|unknown} The structured denial, or the original error.
+ */
+function mapPermissionFailure(error, message) {
+  if (error?.name === 'NotAllowedError') {
+    return createFilesystemError('FILESYSTEM_PERMISSION_DENIED', message, { cause: error?.message ?? String(error) });
+  }
+  return error;
+}
+
+/**
  * Runs the handle permission round-trip: granted stays silent, otherwise
  * one request goes out and anything but granted counts as denied. The
  * first underlying failure is kept for the denial's diagnostic cause.
+ * A handle without the permission API is reported as unsupported — the
+ * callers decide what "no permission surface" means (reads skip the
+ * round-trip; writes read as an unwritable handle).
  * @param {object} handle File System Access handle.
  * @param {string} mode 'read' or 'readwrite'.
- * @returns {Promise<{allowed: boolean, cause: string|undefined}>} Outcome.
+ * @returns {Promise<{allowed: boolean, cause: string|undefined, supported: boolean}>} Outcome.
  */
 async function ensurePermission(handle, mode) {
+  const supported = typeof handle?.queryPermission === 'function' && typeof handle?.requestPermission === 'function';
+  if (!supported) {
+    return { allowed: false, cause: undefined, supported: false };
+  }
   let cause;
   let queried;
   try {
-    queried = await handle.queryPermission?.({ mode });
+    queried = await handle.queryPermission({ mode });
   } catch (error) {
     cause = error?.message ?? String(error);
   }
   if (queried === 'granted') {
-    return { allowed: true, cause: undefined };
+    return { allowed: true, cause: undefined, supported: true };
   }
   let requested;
   try {
-    requested = await handle.requestPermission?.({ mode });
+    requested = await handle.requestPermission({ mode });
   } catch (error) {
     cause = cause ?? error?.message ?? String(error);
   }
-  return { allowed: requested === 'granted', cause };
+  return { allowed: requested === 'granted', cause, supported: true };
 }
 
 /**
@@ -172,11 +196,18 @@ export function createBrowserEnvironmentAdapter(config = {}) {
       }
       if (entry?.handle && typeof entry.handle.getFile === 'function') {
         const permission = await ensurePermission(entry.handle, 'read');
-        if (!permission.allowed) {
+        if (permission.supported && !permission.allowed) {
           throw createFilesystemError('FILESYSTEM_PERMISSION_DENIED', 'Read permission denied', { cause: permission.cause });
         }
-        const file = await entry.handle.getFile();
-        return file.text();
+        // Without a permission surface the read is attempted directly: a
+        // handle that can read needs no round-trip, and a real failure
+        // surfaces with its own cause instead of an unexplained denial.
+        try {
+          const file = await entry.handle.getFile();
+          return await file.text();
+        } catch (error) {
+          throw mapPermissionFailure(error, 'Read permission denied');
+        }
       }
       throw createFilesystemError('FILESYSTEM_READ_FAILED', 'Entry has nothing readable');
     },
@@ -197,6 +228,12 @@ export function createBrowserEnvironmentAdapter(config = {}) {
         return null;
       }
       const permission = await ensurePermission(entry.handle, 'readwrite');
+      if (!permission.supported) {
+        // No permission surface means the handle can never be granted
+        // write access: an unwritable handle, not a denied request — the
+        // caller falls back instead of surfacing a denial.
+        return null;
+      }
       if (!permission.allowed) {
         throw createFilesystemError('FILESYSTEM_PERMISSION_DENIED', 'Write permission denied', { cause: permission.cause });
       }
@@ -208,9 +245,14 @@ export function createBrowserEnvironmentAdapter(config = {}) {
         writable = null;
       } catch (error) {
         if (writable) {
-          await writable.abort?.().catch(() => {});
+          try {
+            await writable.abort?.();
+          } catch {
+            // An abort that is missing, rejects, or throws synchronously
+            // must never mask the ORIGINAL write error.
+          }
         }
-        throw error;
+        throw mapPermissionFailure(error, 'Write permission denied');
       }
       return { name: entry.name, path: entry.path };
     },
