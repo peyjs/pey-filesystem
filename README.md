@@ -5,44 +5,34 @@
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Bonyan Architecture](https://img.shields.io/badge/bonyan-0.11-56c3bf)](https://github.com/barnevis/bonyan)
 
-افزونه پلتفرمی Pey: دسترسی به فایل و پوشهٔ دستگاه کاربر از مسیر آداپتور محیط — انتخاب فایل/پوشه، فهرست بازگشتی ورودی‌های Markdown، خواندن و نوشتن (با پرچم قابلیت برای مسیرهای جایگزین)، و پیش‌نویس‌های سایهٔ مرورگری برای ویرایش‌های ذخیره‌نشده.
+## هدف
 
-## پیکربندی لازم میزبان
-
-روش‌های سایه به یک فروشگاه در `pey.storage` نیاز دارند؛ میزبان باید در `bootstrap.json` تعریف کند:
-
-```json
-{
-  "config": {
-    "pey.storage": {
-      "stores": [
-        { "name": "disk-drafts", "keyPath": "key" }
-      ]
-    }
-  }
-}
-```
+افزونه‌ی پلتفرمی از زیست‌بوم پی برای دسترسی به فایل و پوشهٔ دستگاه کاربر از مسیر آداپتور محیط: انتخاب فایل/پوشه، فهرست بازگشتی ورودی‌های Markdown، خواندن و نوشتن، و پیش‌نویس‌های سایهٔ مرورگری برای ویرایش‌های ذخیره‌نشده.
 
 ## ساختار
 
-- `docs/requirements.md` — نیازمندی‌ها؛ منبع حقیقت ساخت افزونه.
-- `manifest.json` — قرارداد معتبر افزونه.
-- `index.js` — نقطه‌های ورود `prepare` و `activate` بنیان (لود آداپتور + سیم‌کشی).
-- `lib/filesystem-service.js` — پیاده‌سازی سرویس (فیلتر Markdown، BOM، خطاها، سایه‌ها).
-- `lib/environment-loader.js` — لودر و اعتبارسنج آداپتور محیط.
-- `lib/shadow-identity.js` — هویت و کلیدهای سایه (کلید مدرن `(id, path)` و کلید قدیمی ۱.۱.۰).
-- `lib/error.js` — خطای ساخت‌یافتهٔ مرز افزونه.
-- `adapters/browser-environment-adapter.js` — آداپتور محیط مرورگر (File System Access + مسیر جایگزین).
-- `tests/index.test.js` + `tests/filesystem-service.test.js` + `tests/environment-loader.test.js` + `tests/shadow-identity.test.js` + `tests/error.test.js` + `tests/adapters/browser-environment-adapter.test.js` + `tests/environment-adapter-contract.js` — تست‌های افزونه و سوئیت قرارداد مشترک آداپتور؛ `tests/environment-adapter-fixtures.js` — فیکسچرهای مشترک (فیک هندل‌ها، دایرکتوری، هلپر رد) که همهٔ آزمون‌های آداپتور با آن می‌رانند.
-- `docs/reference.md` — مرجع کامل خودکفا.
-- `CHANGELOG.md` — تاریخچه نسخه‌های این افزونه.
+- `adapters/` — آداپتورهای محیط.
+- `docs/` — سندهای پروژه.
+- `lib/` — منطق سرویس.
+- `tests/` — آزمون‌های افزونه و سوئیت قرارداد آداپتور.
+- `index.js` — نقطه‌ی ورود.
+- `manifest.json` — قرارداد افزونه.
 
 ## وابستگی‌ها
 
-- **لازم:** `pey.storage.service` — پیش‌نویس‌های سایه (انبار `disk-drafts`؛ پیکربندی بالا).
-- **اختیاری:** هیچ‌کدام.
+- **الزامی:** `pey.storage.service` — پیش‌نویس‌های سایه از انبار `disk-drafts` این سرویس می‌گذرند.
+- **اختیاری:** ندارد.
 
-## همچنین ببینید
+## نصب و استفاده
 
-- `docs/requirements.md` برای «چه چیزی و چرا»، شامل قرارداد آداپتور محیط.
-- `docs/reference.md` برای قرارداد کامل متد و خطاها.
+افزونه با `manifest.json` و بستهٔ npm به برنامه‌ی میزبان افزوده می‌شود و پس از دو فاز آماده‌سازی و فعال‌سازی، سرویس `pey.filesystem.service` را عرضه می‌کند. میزبان برای پیش‌نویس‌های سایه باید انبار `disk-drafts` را در پیکربندی `pey.storage` تعریف کند (جزئیات در [مرجع](docs/reference.md)) و می‌تواند آداپتور محیط را با کلیدهای `adapter` و `adapterConfig` انتخاب کند.
+
+## مجوز
+
+این پروژه با مجوز MIT منتشر شده است؛ متن کامل در [LICENSE](LICENSE).
+
+## سندهای مرتبط
+
+- [معرفی](docs/introduction.md) — شناخت افزونه به زبان ساده.
+- [مرجع](docs/reference.md) — API، رویدادها، خطاها و پیکربندی.
+- [نیازمندی‌ها](docs/requirements.md) — سند ساخت افزونه، مکتوب پیش از پیاده‌سازی.
